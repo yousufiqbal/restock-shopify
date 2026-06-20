@@ -10,7 +10,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	generate: async ({ request }) => {
+	generate: async ({ request, locals }) => {
+		if ((locals.user as any)?.twoFactorEnabled) return fail(403, { error: '2FA already enabled.' });
+
 		const formData = await request.formData();
 		const password = formData.get('password')?.toString() ?? '';
 
