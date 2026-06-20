@@ -113,5 +113,16 @@ for (const stmt of statements) {
 	await client.execute(stmt);
 }
 
+// 2FA columns — ALTER TABLE ignores IF NOT EXISTS in SQLite, so try/catch each
+const alterStatements = [
+	`ALTER TABLE "user" ADD COLUMN "two_factor_secret" text`,
+	`ALTER TABLE "user" ADD COLUMN "two_factor_enabled" integer DEFAULT false`,
+	`ALTER TABLE "user" ADD COLUMN "two_factor_backup_codes" text`,
+	`ALTER TABLE "session" ADD COLUMN "two_factor_verified" integer DEFAULT false`
+];
+for (const stmt of alterStatements) {
+	try { await client.execute(stmt); } catch {}
+}
+
 console.log('Turso database initialized successfully.');
 await client.close();

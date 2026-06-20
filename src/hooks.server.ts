@@ -4,7 +4,7 @@ import { redirect } from '@sveltejs/kit';
 import { auth } from '$lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 
-const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/api/auth'];
+const PUBLIC_PATHS = ['/auth/login', '/auth/register', '/api/auth', '/auth/setup-2fa', '/auth/verify-2fa'];
 
 const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	const session = await auth.api.getSession({ headers: event.request.headers });
@@ -17,8 +17,13 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	const path = event.url.pathname;
 	const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
 
-	if (!isPublic && !event.locals.user && path !== '/') {
-		redirect(302, '/auth/login');
+	if (!event.locals.user) {
+		if (!isPublic && path !== '/') redirect(302, '/auth/login');
+	} else if (!isPublic) {
+		const user = event.locals.user as any;
+		const sess = event.locals.session as any;
+		if (!user.twoFactorEnabled) redirect(302, '/auth/setup-2fa');
+		else if (!sess?.twoFactorVerified) redirect(302, '/auth/verify-2fa');
 	}
 
 	return svelteKitHandler({ event, resolve, auth, building });
