@@ -14,14 +14,18 @@ export const actions: Actions = {
 		const email = formData.get('email')?.toString() ?? '';
 		const password = formData.get('password')?.toString() ?? '';
 
+		let result: any;
 		try {
-			await auth.api.signInEmail({ body: { email, password } });
+			result = await auth.api.signInEmail({ body: { email, password } });
 		} catch (error) {
 			if (error instanceof APIError) {
 				return fail(400, { error: error.message || 'Invalid email or password' });
 			}
 			return fail(500, { error: 'Unexpected error' });
 		}
+
+		// 2FA enabled: signInEmail destroys the session and sets a temp 2FA cookie
+		if (result?.twoFactorRedirect) redirect(302, '/auth/verify-2fa');
 
 		redirect(302, '/stores');
 	}

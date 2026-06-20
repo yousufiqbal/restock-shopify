@@ -1,5 +1,6 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { auth } from '$lib/server/auth';
 import QRCode from 'qrcode';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -9,42 +10,39 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	generate: async ({ request, fetch }) => {
+	generate: async ({ request }) => {
 		const formData = await request.formData();
 		const password = formData.get('password')?.toString() ?? '';
 
-		const res = await fetch('/api/auth/two-factor/enable', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ password })
-		});
-
-		if (!res.ok) {
-			const err = await res.json().catch(() => ({}));
-			return fail(400, { error: err.message || 'Incorrect password.' });
+		let result: any;
+		try {
+			result = await (auth.api as any).enableTwoFactor({
+				headers: request.headers,
+				body: { password }
+			});
+		} catch (e: any) {
+			return fail(400, { error: e?.body?.message ?? e?.message ?? 'Incorrect password.' });
 		}
 
-		const data = await res.json();
-		const totpUri: string = data.totpURI;
-		const backupCodes: string[] = data.backupCodes ?? [];
+		const totpUri: string = result?.totpURI ?? result?.totpUri ?? '';
+		const backupCodes: string[] = result?.backupCodes ?? [];
 		const qrCode = await QRCode.toDataURL(totpUri);
 
 		return { step: 'verify' as const, totpUri, qrCode, backupCodes };
 	},
 
-	confirm: async ({ request, fetch }) => {
+	confirm: async ({ request }) => {
 		const formData = await request.formData();
 		const code = formData.get('code')?.toString() ?? '';
 		const totpUri = formData.get('totpUri')?.toString() ?? '';
 		const backupCodes = JSON.parse(formData.get('backupCodes')?.toString() ?? '[]');
 
-		const res = await fetch('/api/auth/two-factor/verify-totp', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ code })
-		});
-
-		if (!res.ok) {
+		try {
+			await (auth.api as any).verifyTOTP({
+				headers: request.headers,
+				body: { code }
+			});
+		} catch (e: any) {
 			const qrCode = await QRCode.toDataURL(totpUri);
 			return fail(400, { step: 'verify' as const, error: 'Invalid code. Try again.', totpUri, qrCode, backupCodes });
 		}

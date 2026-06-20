@@ -20,10 +20,9 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 	if (!event.locals.user) {
 		if (!isPublic && path !== '/') redirect(302, '/auth/login');
 	} else if (!isPublic) {
+		// A full session only exists after 2FA is verified, so just force enrollment
 		const user = event.locals.user as any;
-		const sess = event.locals.session as any;
 		if (!user.twoFactorEnabled) redirect(302, '/auth/setup-2fa');
-		else if (!sess?.twoFactorVerified) redirect(302, '/auth/verify-2fa');
 	}
 
 	return svelteKitHandler({ event, resolve, auth, building });

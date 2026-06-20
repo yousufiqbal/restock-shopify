@@ -25,6 +25,7 @@ const statements = [
 		"email" text NOT NULL,
 		"email_verified" integer DEFAULT false NOT NULL,
 		"image" text,
+		"two_factor_enabled" integer DEFAULT false,
 		"created_at" integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
 		"updated_at" integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
 	)`,
@@ -106,23 +107,28 @@ const statements = [
 		"skip" integer DEFAULT false NOT NULL,
 		"position" integer DEFAULT 0 NOT NULL,
 		FOREIGN KEY ("session_id") REFERENCES "restock_sessions"("id") ON DELETE cascade
-	)`
+	)`,
+	`CREATE TABLE IF NOT EXISTS "two_factor" (
+		"id" text PRIMARY KEY NOT NULL,
+		"secret" text NOT NULL,
+		"backup_codes" text NOT NULL,
+		"user_id" text NOT NULL,
+		FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE cascade
+	)`,
+	`CREATE INDEX IF NOT EXISTS "twoFactor_secret_idx" ON "two_factor" ("secret")`,
+	`CREATE INDEX IF NOT EXISTS "twoFactor_userId_idx" ON "two_factor" ("user_id")`
 ];
 
 for (const stmt of statements) {
 	await client.execute(stmt);
 }
 
-// 2FA columns — ALTER TABLE ignores IF NOT EXISTS in SQLite, so try/catch each
-const alterStatements = [
-	`ALTER TABLE "user" ADD COLUMN "two_factor_secret" text`,
-	`ALTER TABLE "user" ADD COLUMN "two_factor_enabled" integer DEFAULT false`,
-	`ALTER TABLE "user" ADD COLUMN "two_factor_backup_codes" text`,
-	`ALTER TABLE "session" ADD COLUMN "two_factor_verified" integer DEFAULT false`
-];
-for (const stmt of alterStatements) {
-	try { await client.execute(stmt); } catch {}
-}
+// Add two_factor_enabled to existing user rows (ignore if already exists)
+try { await client.execute(`ALTER TABLE "user" ADD COLUMN "two_factor_enabled" integer DEFAULT false`); } catch {}
+// Also clean up stale columns added by old migration (ignore errors)
+try { await client.execute(`ALTER TABLE "user" DROP COLUMN "two_factor_secret"`); } catch {}
+try { await client.execute(`ALTER TABLE "user" DROP COLUMN "two_factor_backup_codes"`); } catch {}
+try { await client.execute(`ALTER TABLE "session" DROP COLUMN "two_factor_verified"`); } catch {}
 
 console.log('Turso database initialized successfully.');
 await client.close();
