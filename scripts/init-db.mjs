@@ -1,6 +1,22 @@
 import { createClient } from '@libsql/client';
+import { readFileSync } from 'fs';
 
-const client = createClient({ url: 'file:local.db' });
+// Read .env manually
+const env = Object.fromEntries(
+	readFileSync(new URL('../.env', import.meta.url), 'utf8')
+		.split('\n')
+		.filter(l => l && !l.startsWith('#'))
+		.map(l => l.split('=').map(p => p.trim().replace(/^"|"$/g, '')))
+		.filter(([k]) => k)
+);
+
+const url = env.DATABASE_URL;
+const authToken = env.DATABASE_AUTH_TOKEN || undefined;
+
+if (!url) throw new Error('DATABASE_URL not set in .env');
+console.log('Connecting to:', url);
+
+const client = createClient({ url, authToken });
 
 const statements = [
 	`CREATE TABLE IF NOT EXISTS "user" (
@@ -97,5 +113,5 @@ for (const stmt of statements) {
 	await client.execute(stmt);
 }
 
-console.log('Database initialized successfully.');
+console.log('Turso database initialized successfully.');
 await client.close();

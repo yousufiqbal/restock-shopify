@@ -16,14 +16,12 @@ export const load: PageServerLoad = async ({ params }) => {
 	const index = parseInt(params.productIndex, 10);
 	if (isNaN(index) || index < 0) redirect(302, `../${params.sessionId}/0`);
 
-	// Get all items for this session ordered by position
 	const allItems = await db
 		.select()
 		.from(restockItems)
 		.where(eq(restockItems.sessionId, params.sessionId))
 		.orderBy(asc(restockItems.position), asc(restockItems.id));
 
-	// Group by position (product index)
 	const productMap = new Map<number, typeof allItems>();
 	for (const item of allItems) {
 		if (!productMap.has(item.position)) productMap.set(item.position, []);
@@ -39,8 +37,6 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	const currentPosition = productPositions[index];
 	const variants = productMap.get(currentPosition)!;
-	const prevIndex = index > 0 ? index - 1 : null;
-	const nextIndex = index < totalProducts - 1 ? index + 1 : null;
 
 	return {
 		store,
@@ -50,29 +46,27 @@ export const load: PageServerLoad = async ({ params }) => {
 		productImageUrl: variants[0].productImageUrl,
 		index,
 		totalProducts,
-		prevIndex,
-		nextIndex
+		prevIndex: index > 0 ? index - 1 : null,
+		nextIndex: index < totalProducts - 1 ? index + 1 : null
 	};
 };
 
 export const actions: Actions = {
-	save: async ({ request, params }) => {
+	save: async ({ request }) => {
 		const data = await request.formData();
-		const entries = [...data.entries()];
 
-		// entries: actualRestock_{id}, skip_{id}
-		for (const [key, value] of entries) {
+		// Run all updates in parallel — eliminates sequential round-trip delay
+		const updates: Promise<unknown>[] = [];
+		for (const [key, value] of data.entries()) {
 			if (key.startsWith('actualRestock_')) {
 				const id = key.replace('actualRestock_', '');
 				const actual = value === '' ? null : parseInt(value as string, 10);
-				await db.update(restockItems).set({ actualRestock: actual }).where(eq(restockItems.id, id));
-			}
-			if (key.startsWith('skip_')) {
-				const id = key.replace('skip_', '');
-				const skip = value === 'on';
-				await db.update(restockItems).set({ skip }).where(eq(restockItems.id, id));
+				updates.push(
+					db.update(restockItems).set({ actualRestock: actual }).where(eq(restockItems.id, id))
+				);
 			}
 		}
+		await Promise.all(updates);
 
 		return { success: true };
 	},

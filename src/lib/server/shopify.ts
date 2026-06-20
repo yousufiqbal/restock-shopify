@@ -8,6 +8,14 @@ function shopifyFetch(domain: string, token: string, path: string, params?: Reco
 	});
 }
 
+function shopifyGraphQL(domain: string, token: string, query: string, variables?: Record<string, unknown>) {
+	return fetch(`https://${domain}/admin/api/${API_VERSION}/graphql.json`, {
+		method: 'POST',
+		headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ query, variables })
+	});
+}
+
 export interface ShopifyVariant {
 	id: number;
 	product_id: number;
@@ -26,27 +34,101 @@ export interface ShopifyProduct {
 	variants: ShopifyVariant[];
 }
 
+const PRODUCTS_QUERY = `
+query fetchProducts($cursor: String) {
+  products(first: 250, after: $cursor, query: "status:active bundles:false") {
+    pageInfo { hasNextPage endCursor }
+    edges {
+      node {
+        id
+        title
+        images(first: 20) {
+          edges {
+            node {
+              id
+              url
+              altText
+            }
+          }
+        }
+        media(first: 20) {
+          edges {
+            node {
+              ... on MediaImage {
+                id
+                image { url }
+              }
+            }
+          }
+        }
+        variants(first: 100) {
+          edges {
+            node {
+              id
+              title
+              sku
+              inventoryQuantity
+              image { id url }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+`;
+
+function gidToId(gid: string): number {
+	return parseInt(gid.split('/').pop() ?? '0', 10);
+}
+
 export async function fetchProducts(domain: string, token: string): Promise<ShopifyProduct[]> {
 	const products: ShopifyProduct[] = [];
-	let pageInfo: string | null = null;
+	let cursor: string | null = null;
 
 	while (true) {
-		const params: Record<string, string> = { limit: '250', status: 'active', fields: 'id,title,status,images,variants' };
-		if (pageInfo) params.page_info = pageInfo;
+		const res = await shopifyGraphQL(domain, token, PRODUCTS_QUERY, { cursor });
+		if (!res.ok) throw new Error(`Shopify GraphQL failed: ${res.status}`);
+		const json = await res.json();
 
-		const res = await shopifyFetch(domain, token, '/products', params);
-		if (!res.ok) throw new Error(`Shopify products fetch failed: ${res.status}`);
+		if (json.errors) throw new Error(`Shopify GraphQL error: ${JSON.stringify(json.errors)}`);
 
-		const data = await res.json();
-		products.push(...data.products);
+		const conn = json.data.products;
 
-		const link = res.headers.get('link') ?? '';
-		const next = link.match(/<[^>]+page_info=([^>&"]+)[^>]*>;\s*rel="next"/);
-		if (next) {
-			pageInfo = next[1];
-		} else {
-			break;
+		for (const { node } of conn.edges) {
+			const productId = gidToId(node.id);
+
+			// Build images array compatible with existing resolveVariantImage logic
+			const images = node.images.edges.map(({ node: img }: any) => ({
+				id: gidToId(img.id),
+				src: img.url,
+				variant_ids: [] as number[]
+			}));
+
+			const variants: ShopifyVariant[] = node.variants.edges.map(({ node: v }: any) => ({
+				id: gidToId(v.id),
+				product_id: productId,
+				title: v.title,
+				sku: v.sku ?? '',
+				inventory_quantity: v.inventoryQuantity ?? 0,
+				inventory_item_id: 0,
+				image_id: v.image ? gidToId(v.image.id) : null,
+				_variantImageUrl: v.image?.url ?? null
+			}));
+
+			// Populate variant_ids on images so resolveVariantImage works
+			for (const variant of variants) {
+				if ((variant as any)._variantImageUrl) {
+					const matchImg = images.find((img: any) => img.src === (variant as any)._variantImageUrl);
+					if (matchImg) matchImg.variant_ids.push(variant.id);
+				}
+			}
+
+			products.push({ id: productId, title: node.title, status: 'active', images, variants });
 		}
+
+		if (!conn.pageInfo.hasNextPage) break;
+		cursor = conn.pageInfo.endCursor;
 	}
 
 	return products;
@@ -65,23 +147,18 @@ export async function fetchSales(
 	const map = new Map<number, { s30: number; s60: number; s90: number }>();
 	for (const id of variantIds) map.set(id, { s30: 0, s60: 0, s90: 0 });
 
-	// Fetch orders from 90 days back, paginated
 	let pageInfo: string | null = null;
 	while (true) {
-		const params: Record<string, string> = {
-			limit: '250',
-			status: 'any',
-			financial_status: 'paid',
-			created_at_min: d90,
-			fields: 'line_items,created_at'
-		};
-		if (pageInfo) params.page_info = pageInfo;
+		const params: Record<string, string> = pageInfo
+			? { limit: '250', page_info: pageInfo }
+			: { limit: '250', status: 'any', created_at_min: d90, fields: 'line_items,created_at,cancel_reason' };
 
 		const res = await shopifyFetch(domain, token, '/orders', params);
 		if (!res.ok) throw new Error(`Shopify orders fetch failed: ${res.status}`);
 		const data = await res.json();
 
 		for (const order of data.orders) {
+			if (order.cancel_reason) continue;
 			const orderDate = new Date(order.created_at);
 			for (const item of order.line_items) {
 				const varId = item.variant_id;
@@ -102,23 +179,20 @@ export async function fetchSales(
 	return map;
 }
 
-export function calcRecommendation(sales30: number, currentStock: number, leadDays: number): number {
+export function calcRecommendation(sales30: number, currentStock: number, leadDays: number, coverDays = 30): number {
 	const dailyVelocity = sales30 / 30;
-	return Math.max(0, Math.ceil(dailyVelocity * leadDays - currentStock));
+	return Math.max(0, Math.ceil(dailyVelocity * (leadDays + coverDays) - currentStock));
 }
 
-/** Resolve variant image: use variant-specific image if available, else product's first image */
-export function resolveVariantImage(
-	product: ShopifyProduct,
-	variant: ShopifyVariant
-): string | null {
+export function resolveVariantImage(product: ShopifyProduct, variant: ShopifyVariant): string | null {
+	// Direct variant image from GraphQL
+	if ((variant as any)._variantImageUrl) return (variant as any)._variantImageUrl;
+
 	if (variant.image_id) {
 		const img = product.images.find((i) => i.id === variant.image_id);
 		if (img) return img.src;
 	}
-	// find image that lists this variant
 	const byVariant = product.images.find((i) => i.variant_ids?.includes(variant.id));
 	if (byVariant) return byVariant.src;
-	// fallback to first product image
 	return product.images[0]?.src ?? null;
 }

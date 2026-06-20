@@ -11,7 +11,7 @@ export const load: PageServerLoad = async ({ params }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, params }) => {
+	save: async ({ request, params }) => {
 		const data = await request.formData();
 		const name = data.get('name')?.toString().trim() ?? '';
 		const apiToken = data.get('apiToken')?.toString().trim() ?? '';
@@ -24,6 +24,11 @@ export const actions: Actions = {
 		if (apiToken) updates.apiToken = apiToken;
 
 		await db.update(stores).set(updates).where(eq(stores.id, params.storeId));
+		redirect(302, '/stores');
+	},
+
+	delete: async ({ params }) => {
+		await db.delete(stores).where(eq(stores.id, params.storeId));
 		redirect(302, '/stores');
 	}
 };

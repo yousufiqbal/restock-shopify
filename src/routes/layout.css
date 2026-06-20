@@ -1,1 +1,10 @@
 @import 'tailwindcss';
+
+@layer base {
+	*, *::before, *::after { box-sizing: border-box; }
+	html { font-family: 'Geist', system-ui, -apple-system, sans-serif; }
+	body { background: #fafafa; color: #111; -webkit-font-smoothing: antialiased; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

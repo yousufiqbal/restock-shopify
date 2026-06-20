@@ -1,23 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	let { data } = $props();
 
 	function exportCSV() {
-		const headers = ['Product', 'Variant', 'SKU', 'Current Stock', 'Sales 30d', 'Sales 60d', 'Sales 90d', 'Rec Air', 'Rec Sea', 'Actual Restock'];
+		const headers = ['Product', 'Variant', 'SKU', 'Current Stock', 'Sales 90d', 'Sales 30d', 'Rec Air', 'Rec Sea', 'Actual Restock'];
 		const rows = data.restockList.map((i) => [
-			i.productTitle,
-			i.variantTitle ?? '',
-			i.sku ?? '',
-			i.currentStock,
-			i.sales30,
-			i.sales60,
-			i.sales90,
-			i.recAir,
-			i.recSea,
-			i.actualRestock ?? 0
+			i.productTitle, i.variantTitle ?? '', i.sku ?? '',
+			i.currentStock, i.sales90, i.sales30,
+			i.recAir, i.recSea, i.actualRestock ?? 0
 		]);
-		const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+		const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
 		const blob = new Blob([csv], { type: 'text/csv' });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement('a');
@@ -32,12 +23,14 @@
 		const autoTable = (await import('jspdf-autotable')).default;
 
 		const doc = new jsPDF({ orientation: 'landscape' });
-		doc.setFontSize(14);
-		doc.text(`Restock List — ${data.store.name}`, 14, 16);
+		doc.setFont('helvetica');
+		doc.setFontSize(16);
+		doc.text(`Restock List — ${data.store.name}`, 14, 18);
 		doc.setFontSize(9);
-		doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 22);
+		doc.setTextColor(150);
+		doc.text(`Generated ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, 14, 25);
+		doc.setTextColor(0);
 
-		// Load images as base64
 		const imgCache = new Map<string, string>();
 		async function loadImage(url: string): Promise<string | null> {
 			if (imgCache.has(url)) return imgCache.get(url)!;
@@ -52,34 +45,33 @@
 			} catch { return null; }
 		}
 
-		// Preload all images
-		const imageUrls = [...new Set(data.restockList.map((i) => i.variantImageUrl ?? i.productImageUrl).filter(Boolean) as string[])];
+		const imageUrls = [...new Set(
+			data.restockList.map((i) => i.variantImageUrl ?? i.productImageUrl).filter(Boolean) as string[]
+		)];
 		await Promise.all(imageUrls.map(loadImage));
 
-		const bodyRows: (string | { content: string; image?: string })[][] = [];
-		for (const item of data.restockList) {
-			const imgUrl = item.variantImageUrl ?? item.productImageUrl;
-			const imgData = imgUrl ? (imgCache.get(imgUrl) ?? null) : null;
-			bodyRows.push([
-				imgData ? { content: '', image: imgData } : '',
-				item.productTitle,
-				item.variantTitle ?? '-',
-				item.sku ?? '-',
-				String(item.currentStock),
-				String(item.sales30),
-				String(item.sales60),
-				String(item.sales90),
-				String(item.recAir),
-				String(item.recSea),
-				String(item.actualRestock ?? 0)
-			]);
-		}
+		const bodyRows = data.restockList.map((item) => [
+			'', // image cell
+			item.productTitle,
+			item.variantTitle ?? '-',
+			item.sku ?? '-',
+			String(item.currentStock),
+			String(item.sales90),
+			String(item.sales30),
+			String(item.recAir),
+			String(item.recSea),
+			String(item.actualRestock ?? 0)
+		]);
 
 		autoTable(doc, {
-			startY: 28,
-			head: [['', 'Product', 'Variant', 'SKU', 'Stock', '30d', '60d', '90d', 'Rec Air', 'Rec Sea', 'Restock']],
+			startY: 31,
+			head: [['', 'Product', 'Variant', 'SKU', 'Stock', '90d', '30d', '✈ Air', '🚢 Sea', 'Restock']],
 			body: bodyRows,
-			columnStyles: { 0: { cellWidth: 20 } },
+			columnStyles: {
+				0: { cellWidth: 18 },
+				1: { cellWidth: 52 },
+				9: { fontStyle: 'bold' }
+			},
 			didDrawCell: (hookData: any) => {
 				if (hookData.section === 'body' && hookData.column.index === 0) {
 					const row = data.restockList[hookData.row.index];
@@ -88,96 +80,108 @@
 						const b64 = imgCache.get(imgUrl);
 						if (b64) {
 							try {
-								doc.addImage(b64, 'JPEG',
-									hookData.cell.x + 1,
-									hookData.cell.y + 1,
-									18, 18);
+								doc.addImage(b64, 'JPEG', hookData.cell.x + 1, hookData.cell.y + 1, 16, 16);
 							} catch {}
 						}
 					}
 				}
 			},
-			styles: { fontSize: 8, cellPadding: 3 },
-			headStyles: { fillColor: [30, 41, 59] }
+			styles: { fontSize: 8, cellPadding: 3, minCellHeight: 20 },
+			headStyles: { fillColor: [17, 17, 17], textColor: 255, fontSize: 8, fontStyle: 'bold' },
+			alternateRowStyles: { fillColor: [249, 250, 251] },
+			tableLineColor: [229, 231, 235],
+			tableLineWidth: 0.1
 		});
 
 		doc.save(`restock-${data.store.name}-${new Date().toISOString().slice(0, 10)}.pdf`);
 	}
 </script>
 
-<div class="min-h-screen bg-gray-950 p-4 md:p-8">
-	<div class="max-w-6xl mx-auto">
-		<div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-			<div>
-				<div class="flex items-center gap-3 mb-1">
-					<a href="/stores/{data.store.id}/restock" class="text-gray-400 hover:text-white text-sm transition">← Sessions</a>
-				</div>
-				<h1 class="text-2xl font-bold text-white">Restock List — {data.store.name}</h1>
-				<p class="text-gray-400 text-sm mt-1">{data.restockList.length} items to restock</p>
+<div class="max-w-6xl mx-auto px-4 py-8">
+	<!-- Header -->
+	<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">
+		<div>
+			<div class="flex items-center gap-2 text-sm text-gray-500 mb-2">
+				<a href="/stores" class="hover:text-gray-900 transition-colors">Stores</a>
+				<span class="text-gray-300">/</span>
+				<a href="/stores/{data.store.id}/restock" class="hover:text-gray-900 transition-colors">{data.store.name}</a>
+				<span class="text-gray-300">/</span>
+				<span class="text-gray-900">Restock list</span>
 			</div>
-			<div class="flex gap-3">
-				<button onclick={exportCSV}
-					class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
-					↓ CSV
-				</button>
-				<button onclick={exportPDF}
-					class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
-					↓ PDF
-				</button>
-			</div>
+			<h1 class="text-2xl font-semibold text-gray-900">Restock List</h1>
+			<p class="text-sm text-gray-500 mt-1">
+				<span class="font-medium text-gray-900">{data.restockList.length}</span> items to restock
+			</p>
 		</div>
-
-		{#if data.restockList.length === 0}
-		<div class="text-center py-16 text-gray-500">
-			<div class="text-4xl mb-3">✓</div>
-			<p>No items need restocking based on your inputs.</p>
+		<div class="flex gap-2 shrink-0">
+			<button onclick={exportCSV}
+				class="inline-flex items-center gap-2 border border-gray-200 hover:border-gray-300 bg-white text-gray-700 hover:text-gray-900 text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
+				<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+				Export CSV
+			</button>
+			<button onclick={exportPDF}
+				class="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
+				<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+				Export PDF
+			</button>
 		</div>
-		{:else}
-		<div class="bg-gray-900 rounded-xl overflow-hidden">
-			<div class="overflow-x-auto">
-				<table class="w-full text-sm">
-					<thead>
-						<tr class="border-b border-gray-800">
-							<th class="text-left text-gray-400 font-medium px-4 py-3 w-12"></th>
-							<th class="text-left text-gray-400 font-medium px-4 py-3">Product</th>
-							<th class="text-left text-gray-400 font-medium px-4 py-3">Variant</th>
-							<th class="text-left text-gray-400 font-medium px-4 py-3">SKU</th>
-							<th class="text-right text-gray-400 font-medium px-4 py-3">Stock</th>
-							<th class="text-right text-gray-400 font-medium px-4 py-3">30d</th>
-							<th class="text-right text-gray-400 font-medium px-4 py-3">60d</th>
-							<th class="text-right text-gray-400 font-medium px-4 py-3">90d</th>
-							<th class="text-right text-blue-400 font-medium px-4 py-3">✈ Air</th>
-							<th class="text-right text-teal-400 font-medium px-4 py-3">🚢 Sea</th>
-							<th class="text-right text-white font-medium px-4 py-3">Restock</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each data.restockList as item}
-						<tr class="border-b border-gray-800/50 hover:bg-gray-800/30 transition">
-							<td class="px-4 py-3">
-								{#if item.variantImageUrl ?? item.productImageUrl}
-								<img src={item.variantImageUrl ?? item.productImageUrl ?? ''} alt=""
-									class="w-10 h-10 object-cover rounded-lg bg-gray-800" />
-								{:else}
-								<div class="w-10 h-10 rounded-lg bg-gray-800"></div>
-								{/if}
-							</td>
-							<td class="px-4 py-3 text-white font-medium max-w-[200px] truncate">{item.productTitle}</td>
-							<td class="px-4 py-3 text-gray-300">{item.variantTitle ?? '-'}</td>
-							<td class="px-4 py-3 text-gray-400 font-mono text-xs">{item.sku ?? '-'}</td>
-							<td class="px-4 py-3 text-right text-gray-300">{item.currentStock}</td>
-							<td class="px-4 py-3 text-right text-gray-300">{item.sales30}</td>
-							<td class="px-4 py-3 text-right text-gray-300">{item.sales60}</td>
-							<td class="px-4 py-3 text-right text-gray-300">{item.sales90}</td>
-							<td class="px-4 py-3 text-right text-blue-300">{item.recAir}</td>
-							<td class="px-4 py-3 text-right text-teal-300">{item.recSea}</td>
-							<td class="px-4 py-3 text-right text-white font-bold">{item.actualRestock}</td>
-						</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		</div>
-		{/if}
 	</div>
+
+	{#if data.restockList.length === 0}
+	<div class="bg-white border border-dashed border-gray-200 rounded-xl p-16 text-center">
+		<div class="text-3xl mb-3">✓</div>
+		<p class="text-sm font-medium text-gray-700">No items to restock</p>
+		<p class="text-xs text-gray-400 mt-1">All variants were skipped or have 0 actual restock quantity</p>
+	</div>
+	{:else}
+	<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+		<div class="overflow-x-auto">
+			<table class="w-full text-sm">
+				<thead>
+					<tr class="border-b border-gray-100 bg-gray-50">
+						<th class="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3 w-14"></th>
+						<th class="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Product</th>
+						<th class="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Variant</th>
+						<th class="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">SKU</th>
+						<th class="text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Stock</th>
+						<th class="text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">90d</th>
+						<th class="text-right text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">30d</th>
+						<th class="text-right text-[11px] font-semibold text-blue-500 uppercase tracking-wide px-4 py-3">✈ Air</th>
+						<th class="text-right text-[11px] font-semibold text-teal-500 uppercase tracking-wide px-4 py-3">🚢 Sea</th>
+						<th class="text-right text-[11px] font-semibold text-gray-900 uppercase tracking-wide px-4 py-3">Restock</th>
+					</tr>
+				</thead>
+				<tbody class="divide-y divide-gray-50">
+					{#each data.restockList as item}
+					<tr class="hover:bg-gray-50 transition-colors">
+						<td class="px-4 py-3">
+							{#if (item.variantImageUrl ?? item.productImageUrl)}
+							<img src={item.variantImageUrl ?? item.productImageUrl ?? ''} alt=""
+								class="w-10 h-10 object-cover rounded-lg border border-gray-100 bg-gray-50" />
+							{:else}
+							<div class="w-10 h-10 rounded-lg bg-gray-100"></div>
+							{/if}
+						</td>
+						<td class="px-4 py-3 font-medium text-gray-900 max-w-[200px]">
+							<span class="block truncate">{item.productTitle}</span>
+						</td>
+						<td class="px-4 py-3 text-gray-600">{item.variantTitle ?? '-'}</td>
+						<td class="px-4 py-3 text-gray-400 font-mono text-xs">{item.sku ?? '-'}</td>
+						<td class="px-4 py-3 text-right text-gray-700 tabular-nums">{item.currentStock}</td>
+						<td class="px-4 py-3 text-right text-gray-600 tabular-nums">{item.sales90}</td>
+						<td class="px-4 py-3 text-right text-gray-600 tabular-nums">{item.sales30}</td>
+						<td class="px-4 py-3 text-right text-blue-600 tabular-nums font-medium">{item.recAir}</td>
+						<td class="px-4 py-3 text-right text-teal-600 tabular-nums font-medium">{item.recSea}</td>
+						<td class="px-4 py-3 text-right">
+							<span class="inline-block bg-black text-white text-xs font-bold px-2.5 py-1 rounded-md tabular-nums min-w-[2rem] text-center">
+								{item.actualRestock}
+							</span>
+						</td>
+					</tr>
+					{/each}
+				</tbody>
+			</table>
+		</div>
+	</div>
+	{/if}
 </div>
