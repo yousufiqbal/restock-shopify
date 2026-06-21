@@ -5,22 +5,27 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params }) => {
-	const [store] = await db.select().from(stores).where(eq(stores.id, params.storeId));
-	if (!store) error(404, 'Store not found');
-
-	const [session] = await db.select().from(restockSessions).where(
-		and(eq(restockSessions.id, params.sessionId), eq(restockSessions.storeId, params.storeId))
-	);
-	if (!session) error(404, 'Session not found');
-
 	const index = parseInt(params.productIndex, 10);
 	if (isNaN(index) || index < 0) redirect(302, `../${params.sessionId}/0`);
 
-	const allItems = await db
-		.select()
-		.from(restockItems)
-		.where(eq(restockItems.sessionId, params.sessionId))
-		.orderBy(asc(restockItems.position), asc(restockItems.id));
+	// Fire all reads in parallel — avoids stacking cross-region round-trips
+	const [[store], [session], allItems] = await Promise.all([
+		db.select().from(stores).where(eq(stores.id, params.storeId)),
+		db
+			.select()
+			.from(restockSessions)
+			.where(
+				and(eq(restockSessions.id, params.sessionId), eq(restockSessions.storeId, params.storeId))
+			),
+		db
+			.select()
+			.from(restockItems)
+			.where(eq(restockItems.sessionId, params.sessionId))
+			.orderBy(asc(restockItems.position), asc(restockItems.id))
+	]);
+
+	if (!store) error(404, 'Store not found');
+	if (!session) error(404, 'Session not found');
 
 	const productMap = new Map<number, typeof allItems>();
 	for (const item of allItems) {

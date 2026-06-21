@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { stores, restockSessions, restockItems } from '$lib/server/db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { fetchProducts, fetchSales, calcRecommendation, resolveVariantImage } from '$lib/server/shopify';
@@ -76,5 +76,24 @@ export const actions: Actions = {
 		}
 
 		redirect(302, `/stores/${params.storeId}/restock/${session.id}/0`);
+	},
+
+	delete: async ({ request, params }) => {
+		const data = await request.formData();
+		const sessionId = data.get('sessionId');
+		if (typeof sessionId !== 'string') error(400, 'Missing session id');
+
+		// Verify session belongs to this store before deleting
+		const [session] = await db
+			.select({ id: restockSessions.id })
+			.from(restockSessions)
+			.where(and(eq(restockSessions.id, sessionId), eq(restockSessions.storeId, params.storeId)));
+		if (!session) error(404, 'Session not found');
+
+		// Delete items first — libSQL has foreign_keys OFF by default, so no cascade
+		await db.delete(restockItems).where(eq(restockItems.sessionId, sessionId));
+		await db.delete(restockSessions).where(eq(restockSessions.id, sessionId));
+
+		return { deleted: true };
 	}
 };
