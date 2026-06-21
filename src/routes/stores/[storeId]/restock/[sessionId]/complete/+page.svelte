@@ -97,6 +97,8 @@
 	}
 </script>
 
+<svelte:head><title>Restock list · {data.store.name} · Shopify Restock</title></svelte:head>
+
 <div class="max-w-6xl mx-auto px-4 py-8">
 	<!-- Header -->
 	<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8">

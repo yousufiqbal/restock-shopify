@@ -4,11 +4,13 @@
 	let loading = $state(false);
 </script>
 
+<svelte:head><title>Set up two-factor · Shopify Restock</title></svelte:head>
+
 <div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
 	<div class="w-full max-w-md">
 		<div class="text-center mb-8">
 			<h1 class="text-2xl font-semibold text-gray-900">Set up two-factor authentication</h1>
-			<p class="text-sm text-gray-500 mt-2">Required to access RestockHQ. Use Google Authenticator or any TOTP app.</p>
+			<p class="text-sm text-gray-500 mt-2">Required to access Shopify Restock. Use Google Authenticator or any TOTP app.</p>
 		</div>
 
 		{#if form?.step === 'verify'}

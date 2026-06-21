@@ -3,11 +3,13 @@
 	let { form } = $props();
 </script>
 
+<svelte:head><title>Sign in · Shopify Restock</title></svelte:head>
+
 <div class="min-h-screen bg-white flex items-center justify-center px-4">
 	<div class="w-full max-w-sm">
 		<div class="text-center mb-8">
 			<div class="inline-flex items-center justify-center w-10 h-10 bg-black rounded-xl text-white font-bold mb-4">R</div>
-			<h1 class="text-xl font-semibold text-gray-900">Sign in to RestockHQ</h1>
+			<h1 class="text-xl font-semibold text-gray-900">Sign in to Shopify Restock</h1>
 		</div>
 
 		<form method="POST" use:enhance class="space-y-3">

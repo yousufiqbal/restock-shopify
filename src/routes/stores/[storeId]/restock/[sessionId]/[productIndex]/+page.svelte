@@ -5,6 +5,14 @@
 	let { data } = $props();
 	let saving = $state(false);
 	let formEl = $state<HTMLFormElement>();
+	let toast = $state(false);
+	let toastTimer: ReturnType<typeof setTimeout>;
+
+	function showToast() {
+		toast = true;
+		clearTimeout(toastTimer);
+		toastTimer = setTimeout(() => (toast = false), 2200);
+	}
 
 	// Persist current edits in the background, navigate immediately — the save
 	// round-trip and the next page's load happen concurrently, not chained.
@@ -25,6 +33,8 @@
 
 	const progress = ((data.index + 1) / data.totalProducts) * 100;
 </script>
+
+<svelte:head><title>{data.index + 1}/{data.totalProducts} {data.productTitle} · Shopify Restock</title></svelte:head>
 
 <svelte:window onkeydown={handleKeydown} />
 
@@ -48,7 +58,7 @@
 	</div>
 
 	{#key data.index}
-	<div class="flex-1 max-w-5xl mx-auto w-full px-4 py-6">
+	<div class="animate-fade-in-up flex-1 max-w-5xl mx-auto w-full px-4 py-6">
 		<!-- Product header -->
 		<div class="flex items-center gap-4 mb-5">
 			{#if data.productImageUrl}
@@ -63,9 +73,10 @@
 
 		<form method="POST" action="?/save" bind:this={formEl} use:enhance={() => {
 			saving = true;
-			return async ({ update }) => {
+			return async ({ result, update }) => {
 				await update({ reset: false });
 				saving = false;
+				if (result.type === 'success') showToast();
 			};
 		}}>
 			<!-- Single card containing all variants as rows -->
@@ -107,27 +118,27 @@
 
 						<!-- Mobile: stats + counter stacked; Desktop: inline grid -->
 						<div class="lg:contents">
-							<!-- Stats — single scrollable row on mobile -->
-							<div class="flex gap-2 overflow-x-auto pb-1 lg:pb-0 lg:flex-wrap mb-2 lg:mb-0 no-scrollbar">
-								<div class="flex flex-col items-center border border-gray-100 rounded-lg px-3 py-1.5 shrink-0 min-w-[52px]">
-									<span class="text-[10px] text-gray-400 font-medium uppercase tracking-wide lg:hidden">90d</span>
-									<span class="text-sm font-semibold text-gray-900">{v.sales90}</span>
+							<!-- Stats — 5 fixed columns on mobile (no scroll/wrap); flex of 3 on desktop -->
+							<div class="grid grid-cols-5 gap-1.5 lg:flex lg:gap-2 mb-2 lg:mb-0">
+								<div class="flex flex-col items-center justify-center border border-gray-100 rounded-lg px-1 py-1.5 min-w-0 lg:min-w-[52px] lg:px-3">
+									<span class="text-[9px] text-gray-400 font-medium uppercase tracking-wide lg:hidden">90d</span>
+									<span class="text-sm font-semibold text-gray-900 tabular-nums">{v.sales90}</span>
 								</div>
-								<div class="flex flex-col items-center border border-gray-100 rounded-lg px-3 py-1.5 shrink-0 min-w-[52px]">
-									<span class="text-[10px] text-gray-400 font-medium uppercase tracking-wide lg:hidden">30d</span>
-									<span class="text-sm font-semibold text-gray-900">{v.sales30}</span>
+								<div class="flex flex-col items-center justify-center border border-gray-100 rounded-lg px-1 py-1.5 min-w-0 lg:min-w-[52px] lg:px-3">
+									<span class="text-[9px] text-gray-400 font-medium uppercase tracking-wide lg:hidden">30d</span>
+									<span class="text-sm font-semibold text-gray-900 tabular-nums">{v.sales30}</span>
 								</div>
-								<div class="flex flex-col items-center border rounded-lg px-3 py-1.5 shrink-0 min-w-[52px] {v.currentStock === 0 ? 'border-red-200 bg-red-50' : 'border-gray-100'}">
-									<span class="text-[10px] {v.currentStock === 0 ? 'text-red-400' : 'text-gray-400'} font-medium uppercase tracking-wide lg:hidden">Stock</span>
-									<span class="text-sm font-semibold {v.currentStock === 0 ? 'text-red-600' : 'text-gray-900'}">{v.currentStock}</span>
+								<div class="flex flex-col items-center justify-center border rounded-lg px-1 py-1.5 min-w-0 lg:min-w-[52px] lg:px-3 {v.currentStock === 0 ? 'border-red-200 bg-red-50' : 'border-gray-100'}">
+									<span class="text-[9px] {v.currentStock === 0 ? 'text-red-400' : 'text-gray-400'} font-medium uppercase tracking-wide lg:hidden">Stock</span>
+									<span class="text-sm font-semibold tabular-nums {v.currentStock === 0 ? 'text-red-600' : 'text-gray-900'}">{v.currentStock}</span>
 								</div>
-								<div class="flex flex-col items-center border border-blue-100 bg-blue-50 rounded-lg px-3 py-1.5 shrink-0 min-w-[52px] lg:hidden">
-									<span class="text-[10px] text-blue-500 font-medium uppercase tracking-wide">✈ Air</span>
-									<span class="text-sm font-semibold text-blue-700">{v.recAir}</span>
+								<div class="flex flex-col items-center justify-center border border-blue-100 bg-blue-50 rounded-lg px-1 py-1.5 min-w-0 lg:hidden">
+									<span class="text-[9px] text-blue-500 font-medium uppercase tracking-wide">✈Air</span>
+									<span class="text-sm font-semibold text-blue-700 tabular-nums">{v.recAir}</span>
 								</div>
-								<div class="flex flex-col items-center border border-teal-100 bg-teal-50 rounded-lg px-3 py-1.5 shrink-0 min-w-[52px] lg:hidden">
-									<span class="text-[10px] text-teal-500 font-medium uppercase tracking-wide">🚢 Sea</span>
-									<span class="text-sm font-semibold text-teal-700">{v.recSea}</span>
+								<div class="flex flex-col items-center justify-center border border-teal-100 bg-teal-50 rounded-lg px-1 py-1.5 min-w-0 lg:hidden">
+									<span class="text-[9px] text-teal-500 font-medium uppercase tracking-wide">🚢Sea</span>
+									<span class="text-sm font-semibold text-teal-700 tabular-nums">{v.recSea}</span>
 								</div>
 							</div>
 
@@ -178,16 +189,20 @@
 			<div class="flex items-center justify-between gap-3">
 				{#if data.prevIndex !== null}
 				<button type="button" onclick={() => navTo(data.prevIndex!)}
-					class="inline-flex items-center gap-2 border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 bg-white disabled:opacity-50 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors shadow-sm">
+					class="press inline-flex items-center gap-2 border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 bg-white disabled:opacity-50 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors shadow-sm">
 					<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
 					Previous
 				</button>
 				{:else}
-				<div></div>
+				<button type="button" disabled aria-disabled="true"
+					class="inline-flex items-center gap-2 border border-gray-200 text-gray-300 bg-white text-sm font-medium px-4 py-2.5 rounded-lg shadow-sm cursor-not-allowed">
+					<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+					Previous
+				</button>
 				{/if}
 
 				<button type="submit" disabled={saving}
-					class="inline-flex items-center gap-1.5 border border-gray-200 hover:border-gray-300 text-gray-500 hover:text-gray-700 bg-white disabled:opacity-50 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors shadow-sm">
+					class="press inline-flex items-center gap-1.5 border border-gray-200 hover:border-gray-300 text-gray-500 hover:text-gray-700 bg-white disabled:opacity-50 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors shadow-sm">
 					{#if saving}
 						<svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
 							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -199,14 +214,14 @@
 
 				{#if data.nextIndex !== null}
 				<button type="button" onclick={() => navTo(data.nextIndex!)}
-					class="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white disabled:opacity-50 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm">
+					class="press inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white disabled:opacity-50 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm">
 					Next
 					<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
 				</button>
 				{:else}
 				<button type="submit" formaction="?/complete" disabled={saving}
 					onclick={() => { if (formEl) fetch('?/save', { method: 'POST', body: new FormData(formEl) }).catch(() => {}); }}
-					class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm">
+					class="press inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm">
 					{#if saving}
 						<svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
 							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -223,3 +238,10 @@
 	</div>
 	{/key}
 </div>
+
+{#if toast}
+<div class="animate-fade-in-up fixed top-5 right-5 z-50 flex items-center gap-2 bg-white border border-gray-200 text-gray-900 text-sm font-medium px-4 py-2.5 rounded-lg shadow-lg">
+	<svg class="w-4 h-4 text-green-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+	Restock quantities saved
+</div>
+{/if}

@@ -4,6 +4,8 @@
 	let loading = $state(false);
 </script>
 
+<svelte:head><title>Two-factor verification · Shopify Restock</title></svelte:head>
+
 <div class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
 	<div class="w-full max-w-sm">
 		<div class="text-center mb-8">

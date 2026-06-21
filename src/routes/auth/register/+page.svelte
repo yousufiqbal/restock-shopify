@@ -3,6 +3,8 @@
 	let { form } = $props();
 </script>
 
+<svelte:head><title>Register · Shopify Restock</title></svelte:head>
+
 <div class="min-h-screen bg-white flex items-center justify-center px-4">
 	<div class="w-full max-w-sm">
 		<div class="text-center mb-8">

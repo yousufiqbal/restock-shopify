@@ -13,7 +13,7 @@ export const auth = betterAuth({
 	database: drizzleAdapter(db, { provider: 'sqlite', schema }),
 	emailAndPassword: { enabled: true },
 	plugins: [
-		twoFactor({ issuer: 'RestockHQ', totpOptions: { period: 30, digits: 6 } }),
+		twoFactor({ issuer: 'Shopify Restock', totpOptions: { period: 30, digits: 6 } }),
 		sveltekitCookies(getRequestEvent)
 	]
 });

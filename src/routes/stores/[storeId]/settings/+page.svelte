@@ -3,6 +3,8 @@
 	let { data, form } = $props();
 </script>
 
+<svelte:head><title>{data.store.name} settings · Shopify Restock</title></svelte:head>
+
 <div class="max-w-xl mx-auto px-4 py-10 space-y-6">
 	<div class="flex items-center gap-2 text-sm text-gray-500 mb-6">
 		<a href="/stores" class="hover:text-gray-900 transition-colors">Stores</a>

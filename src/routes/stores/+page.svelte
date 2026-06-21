@@ -2,14 +2,16 @@
 	let { data } = $props();
 </script>
 
+<svelte:head><title>Stores · Shopify Restock</title></svelte:head>
+
 <div class="max-w-4xl mx-auto px-4 py-10">
-	<div class="flex items-center justify-between mb-8">
+	<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-8">
 		<div>
 			<h1 class="text-2xl font-semibold text-gray-900">Stores</h1>
 			<p class="text-sm text-gray-500 mt-0.5">Manage your Shopify stores and restock sessions</p>
 		</div>
 		<a href="/stores/new"
-			class="inline-flex items-center gap-1.5 bg-black hover:bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+			class="press inline-flex items-center gap-1.5 self-start shrink-0 whitespace-nowrap bg-black hover:bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
 			<span class="text-lg leading-none">+</span> Add store
 		</a>
 	</div>
@@ -24,9 +26,9 @@
 		</a>
 	</div>
 	{:else}
-	<div class="bg-white border border-gray-200 rounded-xl shadow-sm divide-y divide-gray-100 overflow-hidden">
+	<div class="stagger bg-white border border-gray-200 rounded-xl shadow-sm divide-y divide-gray-100 overflow-hidden">
 		{#each data.stores as store}
-		<div class="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 hover:bg-gray-50 transition-colors">
 			<div class="min-w-0">
 				<div class="font-medium text-gray-900 text-sm">{store.name}</div>
 				<div class="text-xs text-gray-400 mt-0.5 font-mono">{store.domain}</div>
@@ -39,13 +41,13 @@
 					</span>
 				</div>
 			</div>
-			<div class="flex items-center gap-2 shrink-0 ml-4">
+			<div class="flex items-center gap-2 shrink-0 sm:ml-4">
 				<a href="/stores/{store.id}/restock"
-					class="text-xs bg-black hover:bg-gray-800 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
+					class="press text-xs bg-black hover:bg-gray-800 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
 					Restock
 				</a>
 				<a href="/stores/{store.id}/settings" title="Settings" aria-label="Settings"
-					class="text-gray-400 hover:text-gray-900 border border-gray-200 hover:border-gray-300 p-1.5 rounded-lg transition-colors">
+					class="press text-gray-400 hover:text-gray-900 border border-gray-200 hover:border-gray-300 p-1.5 rounded-lg transition-colors">
 					<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
 				</a>
 			</div>
