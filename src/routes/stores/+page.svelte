@@ -43,8 +43,8 @@
 			</div>
 			<div class="flex items-center gap-2 shrink-0 sm:ml-4">
 				<a href="/stores/{store.id}/restock"
-					class="press text-xs bg-black hover:bg-gray-800 text-white px-3 py-1.5 rounded-lg transition-colors font-medium">
-					Restock
+					class="press text-xs bg-black hover:bg-gray-800 text-white px-3 py-1.5 rounded-lg transition-colors font-medium whitespace-nowrap">
+					Sessions
 				</a>
 				<a href="/stores/{store.id}/settings" title="Settings" aria-label="Settings"
 					class="press text-gray-400 hover:text-gray-900 border border-gray-200 hover:border-gray-300 p-1.5 rounded-lg transition-colors">
