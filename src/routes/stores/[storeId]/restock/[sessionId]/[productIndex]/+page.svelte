@@ -4,12 +4,23 @@
 
 	let { data } = $props();
 	let saving = $state(false);
+	let formEl = $state<HTMLFormElement>();
+
+	// Persist current edits in the background, navigate immediately — the save
+	// round-trip and the next page's load happen concurrently, not chained.
+	function navTo(targetIndex: number) {
+		if (formEl) {
+			// fire-and-forget; the fetch survives the SPA navigation
+			fetch('?/save', { method: 'POST', body: new FormData(formEl) }).catch(() => {});
+		}
+		goto(`../${data.session.id}/${targetIndex}`);
+	}
 
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.target instanceof HTMLInputElement) return;
-		const { session, prevIndex, nextIndex } = data;
-		if (e.key === 'ArrowLeft' && prevIndex !== null) goto(`../${session.id}/${prevIndex}`);
-		if (e.key === 'ArrowRight' && nextIndex !== null) goto(`../${session.id}/${nextIndex}`);
+		const { prevIndex, nextIndex } = data;
+		if (e.key === 'ArrowLeft' && prevIndex !== null) navTo(prevIndex);
+		if (e.key === 'ArrowRight' && nextIndex !== null) navTo(nextIndex);
 	}
 
 	const progress = ((data.index + 1) / data.totalProducts) * 100;
@@ -50,14 +61,11 @@
 			</div>
 		</div>
 
-		<form method="POST" action="?/save" use:enhance={({ submitter }) => {
+		<form method="POST" action="?/save" bind:this={formEl} use:enhance={() => {
 			saving = true;
 			return async ({ update }) => {
 				await update({ reset: false });
 				saving = false;
-				if (submitter?.dataset.next !== undefined) {
-					goto(`../${data.session.id}/${submitter.dataset.next}`);
-				}
 			};
 		}}>
 			<!-- Single card containing all variants as rows -->
@@ -169,7 +177,7 @@
 			<!-- Navigation -->
 			<div class="flex items-center justify-between gap-3">
 				{#if data.prevIndex !== null}
-				<button type="submit" data-next={data.prevIndex} disabled={saving}
+				<button type="button" onclick={() => navTo(data.prevIndex!)}
 					class="inline-flex items-center gap-2 border border-gray-200 hover:border-gray-300 text-gray-700 hover:text-gray-900 bg-white disabled:opacity-50 text-sm font-medium px-4 py-2.5 rounded-lg transition-colors shadow-sm">
 					<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
 					Previous
@@ -190,20 +198,14 @@
 				</button>
 
 				{#if data.nextIndex !== null}
-				<button type="submit" data-next={data.nextIndex} disabled={saving}
+				<button type="button" onclick={() => navTo(data.nextIndex!)}
 					class="inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white disabled:opacity-50 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm">
-					{#if saving}
-						<svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-						</svg>
-					{:else}
-						Next
-						<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-					{/if}
+					Next
+					<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
 				</button>
 				{:else}
 				<button type="submit" formaction="?/complete" disabled={saving}
+					onclick={() => { if (formEl) fetch('?/save', { method: 'POST', body: new FormData(formEl) }).catch(() => {}); }}
 					class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm">
 					{#if saving}
 						<svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
