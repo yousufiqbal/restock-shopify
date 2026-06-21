@@ -39,6 +39,7 @@ export const actions: Actions = {
 		// Build items grouped by product (position = product index, not variant index)
 		const items: (typeof restockItems.$inferInsert)[] = [];
 		let position = 0;
+		let variantPosition = 0;
 
 		for (const product of products) {
 			const productImageUrl = product.images[0]?.src ?? null;
@@ -64,7 +65,8 @@ export const actions: Actions = {
 					currentStock,
 					recAir,
 					recSea,
-					position
+					position,
+					variantPosition: variantPosition++
 				});
 			}
 			position++;

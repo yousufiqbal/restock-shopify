@@ -4,6 +4,14 @@
 	*, *::before, *::after { box-sizing: border-box; }
 	html { font-family: 'Geist', system-ui, -apple-system, sans-serif; }
 	body { background: #fafafa; color: #111; -webkit-font-smoothing: antialiased; }
+
+	/* Tailwind v4 resets button cursor to default — restore the hand cursor */
+	button:not(:disabled), [role="button"]:not(:disabled), label[for], summary {
+		cursor: pointer;
+	}
+	button:disabled, [role="button"][aria-disabled="true"] {
+		cursor: not-allowed;
+	}
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }

@@ -39,5 +39,6 @@ export const restockItems = sqliteTable('restock_items', {
 	recSea: integer('rec_sea').notNull().default(0),
 	actualRestock: integer('actual_restock'),
 	skip: integer('skip', { mode: 'boolean' }).notNull().default(false),
-	position: integer('position').notNull().default(0)
+	position: integer('position').notNull().default(0),
+	variantPosition: integer('variant_position').notNull().default(0)
 });

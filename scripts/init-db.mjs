@@ -106,6 +106,7 @@ const statements = [
 		"actual_restock" integer,
 		"skip" integer DEFAULT false NOT NULL,
 		"position" integer DEFAULT 0 NOT NULL,
+		"variant_position" integer DEFAULT 0 NOT NULL,
 		FOREIGN KEY ("session_id") REFERENCES "restock_sessions"("id") ON DELETE cascade
 	)`,
 	`CREATE TABLE IF NOT EXISTS "two_factor" (
@@ -127,6 +128,8 @@ for (const stmt of statements) {
 try { await client.execute(`ALTER TABLE "user" ADD COLUMN "two_factor_enabled" integer DEFAULT false`); } catch {}
 // Also clean up stale columns added by old migration (ignore errors)
 try { await client.execute(`ALTER TABLE "user" DROP COLUMN "two_factor_secret"`); } catch {}
+// Add variant_position to existing restock_items (ignore if already exists)
+try { await client.execute(`ALTER TABLE "restock_items" ADD COLUMN "variant_position" integer DEFAULT 0 NOT NULL`); } catch {}
 try { await client.execute(`ALTER TABLE "user" DROP COLUMN "two_factor_backup_codes"`); } catch {}
 try { await client.execute(`ALTER TABLE "session" DROP COLUMN "two_factor_verified"`); } catch {}
 

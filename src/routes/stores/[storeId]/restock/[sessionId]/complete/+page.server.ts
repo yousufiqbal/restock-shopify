@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				eq(restockItems.skip, false)
 			)
 		)
-		.orderBy(asc(restockItems.position), asc(restockItems.id));
+		.orderBy(asc(restockItems.position), asc(restockItems.variantPosition), asc(restockItems.id));
 
 	const restockList = items.filter((i) => (i.actualRestock ?? 0) > 0);
 

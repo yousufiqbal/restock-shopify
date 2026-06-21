@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			.select()
 			.from(restockItems)
 			.where(eq(restockItems.sessionId, params.sessionId))
-			.orderBy(asc(restockItems.position), asc(restockItems.id))
+			.orderBy(asc(restockItems.position), asc(restockItems.variantPosition), asc(restockItems.id))
 	]);
 
 	if (!store) error(404, 'Store not found');

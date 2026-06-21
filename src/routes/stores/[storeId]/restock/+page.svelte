@@ -54,7 +54,7 @@
 		<div class="stagger bg-white border border-gray-200 rounded-xl shadow-sm divide-y divide-gray-100 overflow-hidden">
 			{#each data.sessions as s}
 			<div class="flex items-center px-5 py-3.5 hover:bg-gray-50 transition-colors">
-				<a href="/stores/{data.store.id}/restock/{s.id}/0"
+				<a href="/stores/{data.store.id}/restock/{s.id}/{s.completedAt ? 'complete' : '0'}"
 					class="flex items-center justify-between flex-1 min-w-0">
 					<div class="flex items-center gap-3">
 						<div class="w-1.5 h-1.5 rounded-full {s.completedAt ? 'bg-green-400' : 'bg-amber-400'}"></div>
