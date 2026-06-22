@@ -18,7 +18,8 @@ export const restockSessions = sqliteTable('restock_sessions', {
 	storeId: text('store_id').notNull().references(() => stores.id, { onDelete: 'cascade' }),
 	startedAt: text('started_at').notNull().default(sql`(datetime('now'))`),
 	completedAt: text('completed_at'),
-	notes: text('notes')
+	notes: text('notes'),
+	totalProducts: integer('total_products').notNull().default(0)
 });
 
 export const restockItems = sqliteTable('restock_items', {

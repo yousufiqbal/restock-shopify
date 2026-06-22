@@ -121,6 +121,9 @@ export const actions: Actions = {
 			await db.insert(restockItems).values(items.slice(i, i + 100));
 		}
 
+		// position ended at product count — store it so reads never scan all rows
+		await db.update(restockSessions).set({ totalProducts: position }).where(eq(restockSessions.id, session.id));
+
 		redirect(302, `/stores/${params.storeId}/restock/${session.id}/0`);
 	},
 

@@ -85,6 +85,7 @@ const statements = [
 		"started_at" text DEFAULT (datetime('now')) NOT NULL,
 		"completed_at" text,
 		"notes" text,
+		"total_products" integer DEFAULT 0 NOT NULL,
 		FOREIGN KEY ("store_id") REFERENCES "stores"("id") ON DELETE cascade
 	)`,
 	`CREATE TABLE IF NOT EXISTS "restock_items" (
@@ -130,6 +131,13 @@ try { await client.execute(`ALTER TABLE "user" ADD COLUMN "two_factor_enabled" i
 try { await client.execute(`ALTER TABLE "user" DROP COLUMN "two_factor_secret"`); } catch {}
 // Add variant_position to existing restock_items (ignore if already exists)
 try { await client.execute(`ALTER TABLE "restock_items" ADD COLUMN "variant_position" integer DEFAULT 0 NOT NULL`); } catch {}
+// Add total_products to existing restock_sessions + backfill from item positions
+try { await client.execute(`ALTER TABLE "restock_sessions" ADD COLUMN "total_products" integer DEFAULT 0 NOT NULL`); } catch {}
+try {
+	await client.execute(`UPDATE "restock_sessions" SET "total_products" = (
+		SELECT COUNT(DISTINCT "position") FROM "restock_items" WHERE "restock_items"."session_id" = "restock_sessions"."id"
+	) WHERE "total_products" = 0`);
+} catch {}
 try { await client.execute(`ALTER TABLE "user" DROP COLUMN "two_factor_backup_codes"`); } catch {}
 try { await client.execute(`ALTER TABLE "session" DROP COLUMN "two_factor_verified"`); } catch {}
 

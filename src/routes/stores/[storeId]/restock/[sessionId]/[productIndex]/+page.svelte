@@ -1,7 +1,11 @@
 <script lang="ts" module>
+	type ProductRef = { index: number; title: string; done: boolean };
+
 	// Products marked done this browser session, keyed by sessionId. Survives
 	// page navigation so the count is correct even before the save commits.
 	const sessionDone = new Map<string, Set<number>>();
+	// Jump-menu/progress list, fetched once per session and reused across navs.
+	const productsCache = new Map<string, ProductRef[]>();
 </script>
 
 <script lang="ts">
@@ -28,11 +32,23 @@
 
 	let jumpOpen = $state(false);
 	let jumpQuery = $state('');
+	let products = $state<ProductRef[]>(productsCache.get(data.session.id) ?? []);
+
+	// Load the products list once per session (jump menu + progress); cache it.
+	$effect(() => {
+		const sid = data.session.id;
+		const cached = productsCache.get(sid);
+		if (cached) { products = cached; return; }
+		fetch(`/stores/${data.store.id}/restock/${sid}/products`)
+			.then((r) => r.json())
+			.then((d: { products: ProductRef[] }) => { productsCache.set(sid, d.products); products = d.products; })
+			.catch(() => {});
+	});
 
 	// Merge server-side done flags with products marked done locally this session
 	const productsView = $derived.by(() => {
 		doneVersion; // reactive dep
-		return data.products.map((p) => ({ ...p, done: p.done || localDone(p.index) }));
+		return products.map((p) => ({ ...p, done: p.done || localDone(p.index) }));
 	});
 	const doneCount = $derived(productsView.filter((p) => p.done).length);
 

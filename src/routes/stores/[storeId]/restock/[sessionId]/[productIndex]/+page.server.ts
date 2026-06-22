@@ -8,8 +8,9 @@ export const load: PageServerLoad = async ({ params }) => {
 	const index = parseInt(params.productIndex, 10);
 	if (isNaN(index) || index < 0) redirect(302, `../${params.sessionId}/0`);
 
-	// Fire all reads in parallel — avoids stacking cross-region round-trips
-	const [[store], [session], allItems] = await Promise.all([
+	// position == product index, so read ONLY this product's variants — not the
+	// whole session. Keeps Turso row reads tiny per navigation.
+	const [[store], [session], variants] = await Promise.all([
 		db.select().from(stores).where(eq(stores.id, params.storeId)),
 		db
 			.select()
@@ -20,38 +21,18 @@ export const load: PageServerLoad = async ({ params }) => {
 		db
 			.select()
 			.from(restockItems)
-			.where(eq(restockItems.sessionId, params.sessionId))
-			.orderBy(asc(restockItems.position), asc(restockItems.variantPosition), asc(restockItems.id))
+			.where(and(eq(restockItems.sessionId, params.sessionId), eq(restockItems.position, index)))
+			.orderBy(asc(restockItems.variantPosition), asc(restockItems.id))
 	]);
 
 	if (!store) error(404, 'Store not found');
 	if (!session) error(404, 'Session not found');
 
-	const productMap = new Map<number, typeof allItems>();
-	for (const item of allItems) {
-		if (!productMap.has(item.position)) productMap.set(item.position, []);
-		productMap.get(item.position)!.push(item);
-	}
+	const totalProducts = session.totalProducts;
 
-	const productPositions = [...productMap.keys()].sort((a, b) => a - b);
-	const totalProducts = productPositions.length;
-
-	if (index >= totalProducts) {
+	if (index >= totalProducts || variants.length === 0) {
 		redirect(302, `/stores/${params.storeId}/restock/${params.sessionId}/complete`);
 	}
-
-	const currentPosition = productPositions[index];
-	const variants = productMap.get(currentPosition)!;
-
-	// Per-product progress: "done" = any variant has a restock qty or is skipped
-	const isDone = (rows: typeof allItems) =>
-		rows.some((r) => r.actualRestock != null || r.skip);
-
-	const products = productPositions.map((pos, i) => {
-		const rows = productMap.get(pos)!;
-		return { index: i, title: rows[0].productTitle, done: isDone(rows) };
-	});
-	const doneCount = products.filter((p) => p.done).length;
 
 	return {
 		store,
@@ -61,8 +42,6 @@ export const load: PageServerLoad = async ({ params }) => {
 		productImageUrl: variants[0].productImageUrl,
 		index,
 		totalProducts,
-		products,
-		doneCount,
 		prevIndex: index > 0 ? index - 1 : null,
 		nextIndex: index < totalProducts - 1 ? index + 1 : null
 	};
