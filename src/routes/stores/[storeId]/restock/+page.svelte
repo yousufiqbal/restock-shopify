@@ -54,7 +54,7 @@
 		<div class="stagger bg-white border border-gray-200 rounded-xl shadow-sm divide-y divide-gray-100 overflow-hidden">
 			{#each data.sessions as s}
 			<div class="flex items-center px-5 py-3.5 hover:bg-gray-50 transition-colors">
-				<a href="/stores/{data.store.id}/restock/{s.id}/{s.completedAt ? 'complete' : '0'}"
+				<a href="/stores/{data.store.id}/restock/{s.id}/{s.completedAt ? 'complete' : s.progress.resumeIndex}"
 					class="flex items-center justify-between flex-1 min-w-0">
 					<div class="flex items-center gap-3">
 						<div class="w-1.5 h-1.5 rounded-full {s.completedAt ? 'bg-green-400' : 'bg-amber-400'}"></div>
@@ -62,6 +62,9 @@
 						{#if s.notes}<span class="text-xs text-gray-400">{s.notes}</span>{/if}
 					</div>
 					<div class="flex items-center gap-2">
+						{#if !s.completedAt && s.progress.total > 0}
+						<span class="text-xs text-gray-500 tabular-nums">{s.progress.done}/{s.progress.total}</span>
+						{/if}
 						<span class="text-xs {s.completedAt ? 'text-green-600 bg-green-50 border-green-100' : 'text-amber-600 bg-amber-50 border-amber-100'} border px-2 py-0.5 rounded-full font-medium">
 							{s.completedAt ? 'Complete' : 'In progress'}
 						</span>

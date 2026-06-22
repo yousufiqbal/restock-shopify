@@ -1,12 +1,51 @@
+<script lang="ts" module>
+	// Products marked done this browser session, keyed by sessionId. Survives
+	// page navigation so the count is correct even before the save commits.
+	const sessionDone = new Map<string, Set<number>>();
+</script>
+
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto, preloadData } from '$app/navigation';
 
 	let { data } = $props();
 	let saving = $state(false);
+	let doneVersion = $state(0);
+
+	function markDoneLocal(index: number) {
+		let set = sessionDone.get(data.session.id);
+		if (!set) sessionDone.set(data.session.id, (set = new Set()));
+		set.add(index);
+		doneVersion++;
+	}
+
+	function localDone(index: number) {
+		return sessionDone.get(data.session.id)?.has(index) ?? false;
+	}
 	let formEl = $state<HTMLFormElement>();
 	let toast = $state(false);
 	let toastTimer: ReturnType<typeof setTimeout>;
+
+	let jumpOpen = $state(false);
+	let jumpQuery = $state('');
+
+	// Merge server-side done flags with products marked done locally this session
+	const productsView = $derived.by(() => {
+		doneVersion; // reactive dep
+		return data.products.map((p) => ({ ...p, done: p.done || localDone(p.index) }));
+	});
+	const doneCount = $derived(productsView.filter((p) => p.done).length);
+
+	const filteredProducts = $derived.by(() => {
+		const q = jumpQuery.trim().toLowerCase();
+		return q ? productsView.filter((p) => p.title.toLowerCase().includes(q)) : productsView;
+	});
+
+	function jumpTo(index: number) {
+		jumpOpen = false;
+		jumpQuery = '';
+		if (index !== data.index) navTo(index);
+	}
 
 	function showToast() {
 		toast = true;
@@ -14,13 +53,25 @@
 		toastTimer = setTimeout(() => (toast = false), 2200);
 	}
 
+	// Save current edits in background. `markDone` fills blank qtys with 0 so the
+	// product counts as reviewed (0 = default quantity) once you move forward.
+	function saveForm(markDone: boolean) {
+		if (!formEl) return;
+		const body = new FormData(formEl);
+		if (markDone) {
+			for (const [key, value] of [...body.entries()]) {
+				if (key.startsWith('actualRestock_') && value === '') body.set(key, '0');
+			}
+			markDoneLocal(data.index);
+		}
+		// fire-and-forget; the fetch survives the SPA navigation
+		fetch('?/save', { method: 'POST', body }).catch(() => {});
+	}
+
 	// Persist current edits in the background, navigate immediately — the save
 	// round-trip and the next page's load happen concurrently, not chained.
-	function navTo(targetIndex: number) {
-		if (formEl) {
-			// fire-and-forget; the fetch survives the SPA navigation
-			fetch('?/save', { method: 'POST', body: new FormData(formEl) }).catch(() => {});
-		}
+	function navTo(targetIndex: number, markDone = false) {
+		saveForm(markDone);
 		goto(`../${data.session.id}/${targetIndex}`);
 	}
 
@@ -28,7 +79,7 @@
 		if (e.target instanceof HTMLInputElement) return;
 		const { prevIndex, nextIndex } = data;
 		if (e.key === 'ArrowLeft' && prevIndex !== null) navTo(prevIndex);
-		if (e.key === 'ArrowRight' && nextIndex !== null) navTo(nextIndex);
+		if (e.key === 'ArrowRight' && nextIndex !== null) navTo(nextIndex, true);
 	}
 
 	const progress = ((data.index + 1) / data.totalProducts) * 100;
@@ -43,7 +94,7 @@
 
 <svelte:head><title>{data.index + 1}/{data.totalProducts} {data.productTitle} · Shopify Restock</title></svelte:head>
 
-<svelte:window onkeydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} onclick={() => { if (jumpOpen) jumpOpen = false; }} />
 
 <div class="min-h-screen bg-gray-50 flex flex-col">
 	<!-- Progress bar header -->
@@ -56,9 +107,42 @@
 				<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
 				{data.store.name}
 			</a>
-			<div class="text-sm font-medium text-gray-700">
-				<span class="text-gray-900 font-semibold">{data.index + 1}</span>
-				<span class="text-gray-400"> / {data.totalProducts}</span>
+			<div class="relative">
+				<button type="button" aria-haspopup="true" aria-expanded={jumpOpen}
+					onclick={(e) => { e.stopPropagation(); jumpOpen = !jumpOpen; }}
+					class="press inline-flex items-center gap-2 text-sm font-medium text-gray-700 hover:bg-gray-100 px-2.5 py-1 rounded-lg transition-colors">
+					<span><span class="text-gray-900 font-semibold">{data.index + 1}</span><span class="text-gray-400"> / {data.totalProducts}</span></span>
+					<span class="text-xs text-green-600 bg-green-50 border border-green-100 px-1.5 py-0.5 rounded-full tabular-nums">{doneCount} done</span>
+					<svg class="w-3.5 h-3.5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+				</button>
+
+				{#if jumpOpen}
+				<!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+				<div class="animate-pop-in fixed sm:absolute left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 top-16 sm:top-auto sm:mt-2 sm:w-72 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden"
+					onclick={(e) => e.stopPropagation()} role="menu" tabindex="-1">
+					<div class="p-2 border-b border-gray-100">
+						<!-- svelte-ignore a11y_autofocus -->
+						<input bind:value={jumpQuery} type="text" placeholder="Jump to product…" autofocus
+							class="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400" />
+					</div>
+					<div class="max-h-72 overflow-y-auto py-1">
+						{#each filteredProducts as p}
+						<button type="button" onclick={() => jumpTo(p.index)}
+							class="flex items-center gap-2 w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 transition-colors {p.index === data.index ? 'bg-gray-50 font-medium' : ''}">
+							{#if p.done}
+							<svg class="w-3.5 h-3.5 text-green-500 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+							{:else}
+							<span class="w-3.5 h-3.5 shrink-0 rounded-full border border-gray-200"></span>
+							{/if}
+							<span class="text-gray-400 tabular-nums text-xs w-7 shrink-0">{p.index + 1}</span>
+							<span class="truncate text-gray-800">{p.title}</span>
+						</button>
+						{:else}
+						<div class="px-3 py-4 text-center text-sm text-gray-400">No match</div>
+						{/each}
+					</div>
+				</div>
+				{/if}
 			</div>
 			{#if data.session.completedAt}
 			<a href="/stores/{data.store.id}/restock/{data.session.id}/complete"
@@ -228,14 +312,14 @@
 				</button>
 
 				{#if data.nextIndex !== null}
-				<button type="button" onclick={() => navTo(data.nextIndex!)}
+				<button type="button" onclick={() => navTo(data.nextIndex!, true)}
 					class="press inline-flex items-center gap-2 bg-black hover:bg-gray-800 text-white disabled:opacity-50 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm">
 					Next
 					<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
 				</button>
 				{:else}
 				<button type="submit" formaction="?/complete" disabled={saving}
-					onclick={() => { if (formEl) fetch('?/save', { method: 'POST', body: new FormData(formEl) }).catch(() => {}); }}
+					onclick={() => saveForm(true)}
 					class="press inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 text-sm font-medium px-5 py-2.5 rounded-lg transition-colors shadow-sm">
 					{#if saving}
 						<svg class="animate-spin w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

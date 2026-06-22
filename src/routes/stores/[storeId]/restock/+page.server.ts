@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { stores, restockSessions, restockItems } from '$lib/server/db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray, asc } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { fetchProducts, fetchSales, calcRecommendation, resolveVariantImage } from '$lib/server/shopify';
@@ -16,7 +16,51 @@ export const load: PageServerLoad = async ({ params }) => {
 		.orderBy(desc(restockSessions.startedAt))
 		.limit(10);
 
-	return { store, sessions };
+	// Per-session progress: done/total products + resume index (first unfinished)
+	const ids = sessions.map((s) => s.id);
+	const progress = new Map<string, { done: number; total: number; resumeIndex: number }>();
+
+	if (ids.length) {
+		const rows = await db
+			.select({
+				sessionId: restockItems.sessionId,
+				position: restockItems.position,
+				actualRestock: restockItems.actualRestock,
+				skip: restockItems.skip
+			})
+			.from(restockItems)
+			.where(inArray(restockItems.sessionId, ids))
+			.orderBy(asc(restockItems.position));
+
+		// group: sessionId -> position -> done?
+		const bySession = new Map<string, Map<number, boolean>>();
+		for (const r of rows) {
+			let posMap = bySession.get(r.sessionId);
+			if (!posMap) bySession.set(r.sessionId, (posMap = new Map()));
+			const prev = posMap.get(r.position) ?? false;
+			posMap.set(r.position, prev || r.actualRestock != null || r.skip);
+		}
+
+		for (const [sid, posMap] of bySession) {
+			const positions = [...posMap.keys()].sort((a, b) => a - b);
+			const total = positions.length;
+			let done = 0;
+			let resumeIndex = -1;
+			positions.forEach((pos, i) => {
+				if (posMap.get(pos)) done++;
+				else if (resumeIndex === -1) resumeIndex = i;
+			});
+			if (resumeIndex === -1) resumeIndex = 0; // all done -> start at first
+			progress.set(sid, { done, total, resumeIndex });
+		}
+	}
+
+	const sessionsWithProgress = sessions.map((s) => ({
+		...s,
+		progress: progress.get(s.id) ?? { done: 0, total: 0, resumeIndex: 0 }
+	}));
+
+	return { store, sessions: sessionsWithProgress };
 };
 
 export const actions: Actions = {

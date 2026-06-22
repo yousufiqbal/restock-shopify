@@ -43,6 +43,16 @@ export const load: PageServerLoad = async ({ params }) => {
 	const currentPosition = productPositions[index];
 	const variants = productMap.get(currentPosition)!;
 
+	// Per-product progress: "done" = any variant has a restock qty or is skipped
+	const isDone = (rows: typeof allItems) =>
+		rows.some((r) => r.actualRestock != null || r.skip);
+
+	const products = productPositions.map((pos, i) => {
+		const rows = productMap.get(pos)!;
+		return { index: i, title: rows[0].productTitle, done: isDone(rows) };
+	});
+	const doneCount = products.filter((p) => p.done).length;
+
 	return {
 		store,
 		session,
@@ -51,6 +61,8 @@ export const load: PageServerLoad = async ({ params }) => {
 		productImageUrl: variants[0].productImageUrl,
 		index,
 		totalProducts,
+		products,
+		doneCount,
 		prevIndex: index > 0 ? index - 1 : null,
 		nextIndex: index < totalProducts - 1 ? index + 1 : null
 	};
