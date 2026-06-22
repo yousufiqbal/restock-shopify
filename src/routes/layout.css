@@ -17,6 +17,25 @@
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* --- Top navigation loading bar (YouTube-style) --- */
+@keyframes nav-progress {
+	0%   { width: 0; }
+	40%  { width: 65%; }
+	80%  { width: 88%; }
+	100% { width: 95%; }
+}
+.nav-progress {
+	position: fixed;
+	top: 0;
+	left: 0;
+	height: 3px;
+	width: 0;
+	z-index: 100;
+	background: #111;
+	box-shadow: 0 0 8px rgba(17, 17, 17, 0.5);
+	animation: nav-progress 8s cubic-bezier(0.1, 0.7, 0.2, 1) forwards;
+}
+
 /* --- Subtle animations --- */
 @keyframes fade-in {
 	from { opacity: 0; }

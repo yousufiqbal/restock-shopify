@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { goto } from '$app/navigation';
+	import { goto, preloadData } from '$app/navigation';
 
 	let { data } = $props();
 	let saving = $state(false);
@@ -32,6 +32,13 @@
 	}
 
 	const progress = ((data.index + 1) / data.totalProducts) * 100;
+
+	// Prefetch adjacent products so Next/Prev/arrow nav is instant
+	$effect(() => {
+		const base = `/stores/${data.store.id}/restock/${data.session.id}`;
+		if (data.nextIndex !== null) preloadData(`${base}/${data.nextIndex}`);
+		if (data.prevIndex !== null) preloadData(`${base}/${data.prevIndex}`);
+	});
 </script>
 
 <svelte:head><title>{data.index + 1}/{data.totalProducts} {data.productTitle} · Shopify Restock</title></svelte:head>

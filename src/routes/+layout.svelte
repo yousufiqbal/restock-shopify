@@ -1,5 +1,6 @@
 <script lang="ts">
 	import './layout.css';
+	import { navigating } from '$app/state';
 
 	let { children, data } = $props();
 	let menuOpen = $state(false);
@@ -8,6 +9,10 @@
 		menuOpen = false;
 	}
 </script>
+
+{#if navigating.to && navigating.to.route.id !== '/stores/[storeId]/restock/[sessionId]/[productIndex]'}
+<div class="nav-progress"></div>
+{/if}
 
 <svelte:window onclick={() => { if (menuOpen) menuOpen = false; }} />
 
