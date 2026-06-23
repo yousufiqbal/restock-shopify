@@ -4,6 +4,8 @@ import { eq, and, desc, inArray, asc } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { fetchProducts, fetchSales, calcRecommendation, resolveVariantImage } from '$lib/server/shopify';
+import { getLwaToken, fetchAmazonListings, createOrdersReport } from '$lib/server/amazon';
+import { AMAZON_AWS_ACCESS_KEY_ID, AMAZON_AWS_SECRET_ACCESS_KEY } from '$env/static/private';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const [store] = await db.select().from(stores).where(eq(stores.id, params.storeId));
@@ -74,13 +76,57 @@ export const actions: Actions = {
 			.values({ storeId: params.storeId })
 			.returning();
 
-		// Fetch Shopify data
-		const products = await fetchProducts(store.domain, store.apiToken);
+		if (store.storeType === 'amazon') {
+			// Amazon path: fetch listings synchronously, request sales report async
+			if (!store.lwaClientId || !store.lwaClientSecret || !store.lwaRefreshToken || !store.marketplaceId) {
+				error(400, 'Amazon store credentials not configured');
+			}
+			const accessToken = await getLwaToken(store.lwaClientId, store.lwaClientSecret, store.lwaRefreshToken);
+			const creds = { accessToken, awsKeyId: AMAZON_AWS_ACCESS_KEY_ID, awsSecret: AMAZON_AWS_SECRET_ACCESS_KEY };
 
+			const listings = await fetchAmazonListings(store.domain, store.marketplaceId, creds);
+
+			// Insert items with sales = 0 (will be updated when report finishes)
+			const items: (typeof restockItems.$inferInsert)[] = [];
+			let position = 0;
+			for (const listing of listings) {
+				items.push({
+					sessionId: session.id,
+					productId: listing.asin,
+					variantId: listing.sku,
+					productTitle: listing.title,
+					variantTitle: null,
+					sku: listing.sku,
+					productImageUrl: listing.imageUrl,
+					variantImageUrl: null,
+					sales30: 0,
+					sales60: 0,
+					sales90: 0,
+					currentStock: listing.currentStock,
+					recAir: calcRecommendation(0, listing.currentStock, store.airLeadDays),
+					recSea: calcRecommendation(0, listing.currentStock, store.seaLeadDays),
+					position: position++,
+					variantPosition: 0
+				});
+			}
+			for (let i = 0; i < items.length; i += 100) {
+				await db.insert(restockItems).values(items.slice(i, i + 100));
+			}
+
+			// Kick off async sales report
+			const reportId = await createOrdersReport(store.marketplaceId, creds);
+			await db.update(restockSessions)
+				.set({ totalProducts: position, reportId })
+				.where(eq(restockSessions.id, session.id));
+
+			redirect(302, `/stores/${params.storeId}/restock/${session.id}/preparing`);
+		}
+
+		// Shopify path (unchanged)
+		const products = await fetchProducts(store.domain, store.apiToken);
 		const variantIds = products.flatMap((p) => p.variants.map((v) => v.id));
 		const salesMap = await fetchSales(store.domain, store.apiToken, variantIds);
 
-		// Build items grouped by product (position = product index, not variant index)
 		const items: (typeof restockItems.$inferInsert)[] = [];
 		let position = 0;
 		let variantPosition = 0;
@@ -116,12 +162,9 @@ export const actions: Actions = {
 			position++;
 		}
 
-		// Insert in batches of 100
 		for (let i = 0; i < items.length; i += 100) {
 			await db.insert(restockItems).values(items.slice(i, i + 100));
 		}
-
-		// position ended at product count — store it so reads never scan all rows
 		await db.update(restockSessions).set({ totalProducts: position }).where(eq(restockSessions.id, session.id));
 
 		redirect(302, `/stores/${params.storeId}/restock/${session.id}/0`);

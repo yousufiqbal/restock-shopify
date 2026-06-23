@@ -5,12 +5,18 @@ export * from './auth.schema';
 
 export const stores = sqliteTable('stores', {
 	id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+	storeType: text('store_type').notNull().default('shopify'),
 	name: text('name').notNull(),
 	domain: text('domain').notNull().unique(),
-	apiToken: text('api_token').notNull(),
+	apiToken: text('api_token').notNull().default(''),
 	airLeadDays: integer('air_lead_days').notNull().default(15),
 	seaLeadDays: integer('sea_lead_days').notNull().default(60),
-	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
+	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+	// Amazon SP-API credentials (null for Shopify stores)
+	lwaClientId: text('lwa_client_id'),
+	lwaClientSecret: text('lwa_client_secret'),
+	lwaRefreshToken: text('lwa_refresh_token'),
+	marketplaceId: text('marketplace_id')
 });
 
 export const restockSessions = sqliteTable('restock_sessions', {
@@ -19,7 +25,9 @@ export const restockSessions = sqliteTable('restock_sessions', {
 	startedAt: text('started_at').notNull().default(sql`(datetime('now'))`),
 	completedAt: text('completed_at'),
 	notes: text('notes'),
-	totalProducts: integer('total_products').notNull().default(0)
+	totalProducts: integer('total_products').notNull().default(0),
+	// Amazon: report ID while session is preparing (totalProducts=0 = still preparing)
+	reportId: text('report_id')
 });
 
 export const restockItems = sqliteTable('restock_items', {

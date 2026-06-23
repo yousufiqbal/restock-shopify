@@ -1,6 +1,15 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	let { data, form } = $props();
+
+	const MARKETPLACES = [
+		{ id: 'A1F83G8C2ARO7P', label: 'UK (amazon.co.uk)' },
+		{ id: 'ATVPDKIKX0DER', label: 'US (amazon.com)' },
+		{ id: 'A1PA6795UKMFR9', label: 'DE (amazon.de)' },
+		{ id: 'A13V1IB3VIYZZH', label: 'FR (amazon.fr)' },
+		{ id: 'APJ6JRA9NG5V4', label: 'IT (amazon.it)' },
+		{ id: 'A1RKKUPIHCS9HS', label: 'ES (amazon.es)' }
+	];
 </script>
 
 <svelte:head><title>{data.store.name} settings · Shopify Restock</title></svelte:head>
@@ -16,7 +25,12 @@
 
 	<!-- Main settings -->
 	<div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-		<h1 class="text-base font-semibold text-gray-900 mb-5">Store settings</h1>
+		<div class="flex items-center gap-2 mb-5">
+			<h1 class="text-base font-semibold text-gray-900">Store settings</h1>
+			<span class="text-xs font-medium px-2 py-0.5 rounded-full {data.store.storeType === 'amazon' ? 'bg-[#FF9900]/10 text-[#c47800]' : 'bg-green-50 text-green-700'}">
+				{data.store.storeType === 'amazon' ? 'Amazon' : 'Shopify'}
+			</span>
+		</div>
 
 		<form method="POST" action="?/save" use:enhance class="space-y-4">
 			{#if form?.error}
@@ -27,17 +41,56 @@
 				<input id="name" name="name" type="text" required value={data.store.name}
 					class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 transition" />
 			</div>
-			<div>
-				<p class="block text-xs font-medium text-gray-700 mb-1.5">Shopify domain</p>
-				<div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-400 font-mono">{data.store.domain}</div>
-			</div>
-			<div>
-				<label class="block text-xs font-medium text-gray-700 mb-1.5" for="apiToken">
-					Admin API token <span class="text-gray-400 font-normal">(leave blank to keep current)</span>
-				</label>
-				<input id="apiToken" name="apiToken" type="password" placeholder="shpat_..."
-					class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 font-mono placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 transition" />
-			</div>
+
+			{#if data.store.storeType === 'amazon'}
+				<div>
+					<p class="block text-xs font-medium text-gray-700 mb-1.5">Seller ID</p>
+					<div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-400 font-mono">{data.store.domain}</div>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-700 mb-1.5" for="marketplaceId">Marketplace</label>
+					<select id="marketplaceId" name="marketplaceId"
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 transition bg-white">
+						{#each MARKETPLACES as mp}
+							<option value={mp.id} selected={mp.id === data.store.marketplaceId}>{mp.label}</option>
+						{/each}
+					</select>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-700 mb-1.5" for="lwaClientId">
+						LWA Client ID <span class="text-gray-400 font-normal">(leave blank to keep current)</span>
+					</label>
+					<input id="lwaClientId" name="lwaClientId" type="text" placeholder="amzn1.application-oa2-client...."
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 font-mono focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 transition" />
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-700 mb-1.5" for="lwaClientSecret">
+						LWA Client Secret <span class="text-gray-400 font-normal">(leave blank to keep current)</span>
+					</label>
+					<input id="lwaClientSecret" name="lwaClientSecret" type="password" placeholder="••••••••"
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 font-mono focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 transition" />
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-700 mb-1.5" for="lwaRefreshToken">
+						LWA Refresh Token <span class="text-gray-400 font-normal">(leave blank to keep current)</span>
+					</label>
+					<input id="lwaRefreshToken" name="lwaRefreshToken" type="password" placeholder="Atzr|..."
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 font-mono focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 transition" />
+				</div>
+			{:else}
+				<div>
+					<p class="block text-xs font-medium text-gray-700 mb-1.5">Shopify domain</p>
+					<div class="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-400 font-mono">{data.store.domain}</div>
+				</div>
+				<div>
+					<label class="block text-xs font-medium text-gray-700 mb-1.5" for="apiToken">
+						Admin API token <span class="text-gray-400 font-normal">(leave blank to keep current)</span>
+					</label>
+					<input id="apiToken" name="apiToken" type="password" placeholder="shpat_..."
+						class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900 font-mono placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-gray-400 transition" />
+				</div>
+			{/if}
+
 			<div class="grid grid-cols-2 gap-4">
 				<div>
 					<label class="block text-xs font-medium text-gray-700 mb-1.5" for="airLeadDays">✈ Air lead days</label>

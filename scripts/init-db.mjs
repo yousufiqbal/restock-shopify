@@ -141,5 +141,14 @@ try {
 try { await client.execute(`ALTER TABLE "user" DROP COLUMN "two_factor_backup_codes"`); } catch {}
 try { await client.execute(`ALTER TABLE "session" DROP COLUMN "two_factor_verified"`); } catch {}
 
+// Amazon store support
+try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "store_type" text DEFAULT 'shopify' NOT NULL`); } catch {}
+try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "lwa_client_id" text`); } catch {}
+try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "lwa_client_secret" text`); } catch {}
+try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "lwa_refresh_token" text`); } catch {}
+try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "marketplace_id" text`); } catch {}
+// Make api_token nullable/defaulted for Amazon stores
+try { await client.execute(`ALTER TABLE "restock_sessions" ADD COLUMN "report_id" text`); } catch {}
+
 console.log('Turso database initialized successfully.');
 await client.close();

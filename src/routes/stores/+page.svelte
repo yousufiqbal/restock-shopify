@@ -20,7 +20,7 @@
 	<div class="bg-white border border-dashed border-gray-300 rounded-xl p-12 text-center">
 		<div class="text-3xl mb-3">🏪</div>
 		<p class="text-sm font-medium text-gray-700 mb-1">No stores yet</p>
-		<p class="text-sm text-gray-400 mb-4">Add your first Shopify store to get started</p>
+		<p class="text-sm text-gray-400 mb-4">Add your first Shopify or Amazon store to get started</p>
 		<a href="/stores/new" class="inline-flex items-center gap-1.5 bg-black hover:bg-gray-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
 			+ Add store
 		</a>
@@ -30,7 +30,12 @@
 		{#each data.stores as store}
 		<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-5 py-4 hover:bg-gray-50 transition-colors">
 			<div class="min-w-0">
-				<div class="font-medium text-gray-900 text-sm">{store.name}</div>
+				<div class="flex items-center gap-2">
+					<div class="font-medium text-gray-900 text-sm">{store.name}</div>
+					<span class="text-xs font-medium px-1.5 py-0.5 rounded-full {store.storeType === 'amazon' ? 'bg-[#FF9900]/10 text-[#c47800]' : 'bg-green-50 text-green-700'}">
+						{store.storeType === 'amazon' ? 'Amazon' : 'Shopify'}
+					</span>
+				</div>
 				<div class="text-xs text-gray-400 mt-0.5 font-mono">{store.domain}</div>
 				<div class="flex items-center gap-2 mt-1.5">
 					<span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
