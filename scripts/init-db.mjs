@@ -141,6 +141,9 @@ try {
 try { await client.execute(`ALTER TABLE "user" DROP COLUMN "two_factor_backup_codes"`); } catch {}
 try { await client.execute(`ALTER TABLE "session" DROP COLUMN "two_factor_verified"`); } catch {}
 
+// Ordered tracking
+try { await client.execute(`ALTER TABLE "restock_items" ADD COLUMN "ordered_at" text`); } catch {}
+
 // Amazon store support
 try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "store_type" text DEFAULT 'shopify' NOT NULL`); } catch {}
 try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "lwa_client_id" text`); } catch {}

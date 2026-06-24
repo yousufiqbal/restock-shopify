@@ -1,6 +1,27 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	let { data } = $props();
 	let menuOpen = $state(false);
+
+	// Local ordered state — plain object so $state tracks property writes
+	let ordered = $state<Record<string, boolean>>(
+		Object.fromEntries(data.restockList.map(i => [i.id, !!i.orderedAt]))
+	);
+
+	const orderedCount = $derived(Object.values(ordered).filter(Boolean).length);
+
+	function thumbUrl(url: string | null | undefined): string {
+		if (!url) return '';
+		if (url.includes('cdn.shopify.com')) {
+			const u = new URL(url);
+			u.searchParams.set('width', '88');
+			return u.toString();
+		}
+		if (url.includes('media-amazon.com') || url.includes('images-amazon.com')) {
+			return url.replace(/(\.[a-z]+)(\?.*)?$/i, '._SX88_$1$2');
+		}
+		return url;
+	}
 
 	function exportCSV() {
 		const headers = ['Product', 'Variant', 'Restock'];
@@ -35,7 +56,12 @@
 			</div>
 			<h1 class="text-2xl font-semibold text-gray-900">Restock List</h1>
 			<p class="text-sm text-gray-500 mt-1">
-				<span class="font-medium text-gray-900">{data.restockList.length}</span> items to restock
+				<span class="font-medium text-gray-900">{data.restockList.length}</span> items ·
+				{#if orderedCount > 0}
+				<span class="text-green-600 font-medium">{orderedCount} ordered</span>
+				{:else}
+				<span>0 ordered</span>
+				{/if}
 			</p>
 		</div>
 		<div class="flex gap-2 shrink-0">
@@ -70,13 +96,13 @@
 		<p class="text-xs text-gray-400 mt-1">All variants were skipped or have 0 actual restock quantity</p>
 	</div>
 	{:else}
-	<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-		<!-- Mobile: stacked cards (image + product, variant beneath, restock) -->
-		<div class="lg:hidden divide-y divide-gray-100">
-			{#each data.restockList as item}
-			<div class="flex items-center gap-3 px-4 py-3">
+	<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden max-w-2xl">
+		<div class="divide-y divide-gray-100">
+			{#each data.restockList as item (item.id)}
+			{@const isOrdered = ordered[item.id] ?? false}
+			<div class="flex items-center gap-3 px-4 py-3 transition-colors {isOrdered ? 'bg-green-50/60' : 'hover:bg-gray-50'}">
 				{#if (item.variantImageUrl ?? item.productImageUrl)}
-				<img src={item.variantImageUrl ?? item.productImageUrl ?? ''} alt=""
+				<img src={thumbUrl(item.variantImageUrl ?? item.productImageUrl)} alt=""
 					class="w-11 h-11 object-cover rounded-lg border border-gray-100 bg-gray-50 shrink-0" />
 				{:else}
 				<div class="w-11 h-11 rounded-lg bg-gray-100 shrink-0"></div>
@@ -85,48 +111,25 @@
 					<div class="text-sm font-medium text-gray-900 truncate">{item.productTitle}</div>
 					{#if item.variantTitle}<div class="text-xs text-gray-500 truncate">{item.variantTitle}</div>{/if}
 				</div>
-				<span class="shrink-0 inline-block bg-black text-white text-xs font-bold px-2.5 py-1 rounded-md tabular-nums min-w-[2rem] text-center">
+				<span class="shrink-0 inline-flex items-center justify-center w-8 h-8 {isOrdered ? 'bg-green-600' : 'bg-black'} text-white text-xs font-bold rounded-lg tabular-nums transition-colors">
 					{item.actualRestock}
 				</span>
+				<!-- Ordered toggle -->
+				<form method="POST" action="?/toggleOrdered" use:enhance={() => {
+					ordered[item.id] = !isOrdered;
+					return async () => {};
+				}}>
+					<input type="hidden" name="id" value={item.id} />
+					<button type="submit" title={isOrdered ? 'Mark as not ordered' : 'Mark as ordered'}
+						class="press shrink-0 w-8 h-8 flex items-center justify-center rounded-lg border transition-colors
+						{isOrdered ? 'border-green-300 bg-green-100 text-green-600 hover:bg-green-200' : 'border-gray-200 bg-white text-gray-300 hover:text-gray-500 hover:border-gray-300'}">
+						<svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+							<polyline points="20 6 9 17 4 12"/>
+						</svg>
+					</button>
+				</form>
 			</div>
 			{/each}
-		</div>
-
-		<!-- Desktop: table -->
-		<div class="hidden lg:block overflow-x-auto">
-			<table class="w-full text-sm">
-				<thead>
-					<tr class="border-b border-gray-100 bg-gray-50">
-						<th class="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3 w-14"></th>
-						<th class="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Product</th>
-						<th class="text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide px-4 py-3">Variant</th>
-						<th class="text-right text-[11px] font-semibold text-gray-900 uppercase tracking-wide px-4 py-3">Restock</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-gray-50">
-					{#each data.restockList as item}
-					<tr class="hover:bg-gray-50 transition-colors">
-						<td class="px-4 py-3">
-							{#if (item.variantImageUrl ?? item.productImageUrl)}
-							<img src={item.variantImageUrl ?? item.productImageUrl ?? ''} alt=""
-								class="w-10 h-10 object-cover rounded-lg border border-gray-100 bg-gray-50" />
-							{:else}
-							<div class="w-10 h-10 rounded-lg bg-gray-100"></div>
-							{/if}
-						</td>
-						<td class="px-4 py-3 font-medium text-gray-900 max-w-[200px]">
-							<span class="block truncate">{item.productTitle}</span>
-						</td>
-						<td class="px-4 py-3 text-gray-600">{item.variantTitle ?? '-'}</td>
-						<td class="px-4 py-3 text-right">
-							<span class="inline-block bg-black text-white text-xs font-bold px-2.5 py-1 rounded-md tabular-nums min-w-[2rem] text-center">
-								{item.actualRestock}
-							</span>
-						</td>
-					</tr>
-					{/each}
-				</tbody>
-			</table>
 		</div>
 	</div>
 	{/if}

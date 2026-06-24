@@ -49,5 +49,6 @@ export const restockItems = sqliteTable('restock_items', {
 	actualRestock: integer('actual_restock'),
 	skip: integer('skip', { mode: 'boolean' }).notNull().default(false),
 	position: integer('position').notNull().default(0),
-	variantPosition: integer('variant_position').notNull().default(0)
+	variantPosition: integer('variant_position').notNull().default(0),
+	orderedAt: text('ordered_at')
 });
