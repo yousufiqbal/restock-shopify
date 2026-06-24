@@ -5,7 +5,7 @@ import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { fetchProducts, fetchSales, calcRecommendation, resolveVariantImage } from '$lib/server/shopify';
 import { getLwaToken, fetchAmazonListings, createOrdersReport } from '$lib/server/amazon';
-import { AMAZON_AWS_ACCESS_KEY_ID, AMAZON_AWS_SECRET_ACCESS_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const [store] = await db.select().from(stores).where(eq(stores.id, params.storeId));
@@ -82,7 +82,7 @@ export const actions: Actions = {
 				error(400, 'Amazon store credentials not configured');
 			}
 			const accessToken = await getLwaToken(store.lwaClientId, store.lwaClientSecret, store.lwaRefreshToken);
-			const creds = { accessToken, awsKeyId: AMAZON_AWS_ACCESS_KEY_ID, awsSecret: AMAZON_AWS_SECRET_ACCESS_KEY };
+			const creds = { accessToken, awsKeyId: env.AMAZON_AWS_ACCESS_KEY_ID ?? '', awsSecret: env.AMAZON_AWS_SECRET_ACCESS_KEY ?? '' };
 
 			const listings = await fetchAmazonListings(store.domain, store.marketplaceId, creds);
 

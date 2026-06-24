@@ -7,7 +7,7 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getLwaToken, getReportStatus, downloadReport, parseSalesReport } from '$lib/server/amazon';
 import { calcRecommendation } from '$lib/server/shopify';
-import { AMAZON_AWS_ACCESS_KEY_ID, AMAZON_AWS_SECRET_ACCESS_KEY } from '$env/static/private';
+import { env } from '$env/dynamic/private';
 
 export const GET: RequestHandler = async ({ params }) => {
 	const [[session], [store]] = await Promise.all([
@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	const accessToken = await getLwaToken(store.lwaClientId, store.lwaClientSecret, store.lwaRefreshToken);
-	const creds = { accessToken, awsKeyId: AMAZON_AWS_ACCESS_KEY_ID, awsSecret: AMAZON_AWS_SECRET_ACCESS_KEY };
+	const creds = { accessToken, awsKeyId: env.AMAZON_AWS_ACCESS_KEY_ID ?? '', awsSecret: env.AMAZON_AWS_SECRET_ACCESS_KEY ?? '' };
 
 	const { status, documentId } = await getReportStatus(session.reportId, creds);
 
