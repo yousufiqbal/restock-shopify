@@ -152,15 +152,15 @@
 	</div>
 
 	{#key data.index}
-	<div class="animate-fade-in-up flex-1 max-w-2xl mx-auto w-full px-4 py-6">
+	<div class="animate-fade-in-up flex-1 max-w-2xl mx-auto w-full px-4 py-5">
 		<!-- Product header -->
-		<div class="flex items-center gap-4 mb-5">
+		<div class="flex items-center gap-3 mb-4">
 			{#if data.productImageUrl}
 				<img src={data.productImageUrl} alt={data.productTitle}
-					class="w-14 h-14 object-cover rounded-xl border border-gray-200 shrink-0 bg-gray-100" />
+					class="w-12 h-12 object-cover rounded-lg border border-gray-200 shrink-0 bg-gray-100" />
 			{/if}
 			<div>
-				<h1 class="text-xl font-semibold text-gray-900 leading-tight">{data.productTitle}</h1>
+				<h1 class="text-base font-semibold text-gray-900 leading-snug">{data.productTitle}</h1>
 				<p class="text-xs text-gray-400 mt-0.5">{data.variants.length} variant{data.variants.length > 1 ? 's' : ''}</p>
 			</div>
 		</div>
@@ -173,38 +173,36 @@
 				if (result.type === 'success') showToast();
 			};
 		}}>
-			<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-5">
+			<div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden mb-4">
 				<div class="divide-y divide-gray-100">
 					{#each data.variants as v}
-					<div class="p-4 flex items-center gap-4">
+					<div class="px-4 py-3 flex flex-wrap items-center gap-3">
 						<!-- Image + title -->
-						<div class="flex items-center gap-3 flex-1 min-w-0">
+						<div class="flex items-center gap-2.5 flex-1 min-w-0">
 							{#if v.variantImageUrl}
 								<img src={v.variantImageUrl} alt={v.variantTitle ?? ''}
-									class="w-10 h-10 object-cover rounded-lg border border-gray-100 bg-gray-50 shrink-0" />
+									class="w-8 h-8 object-cover rounded-md border border-gray-100 bg-gray-50 shrink-0" />
 							{:else if v.productImageUrl}
 								<img src={v.productImageUrl} alt={v.variantTitle ?? ''}
-									class="w-10 h-10 object-cover rounded-lg border border-gray-100 bg-gray-50 shrink-0 opacity-40" />
+									class="w-8 h-8 object-cover rounded-md border border-gray-100 bg-gray-50 shrink-0 opacity-40" />
 							{:else}
-								<div class="w-10 h-10 rounded-lg bg-gray-100 shrink-0"></div>
+								<div class="w-8 h-8 rounded-md bg-gray-100 shrink-0"></div>
 							{/if}
 							<div class="min-w-0">
-								<div class="text-sm font-medium text-gray-900 truncate">{v.variantTitle ?? 'Default'}</div>
+								<div class="text-sm font-medium text-gray-900">{v.variantTitle ?? 'Default'}</div>
 								{#if v.sku}<div class="text-xs text-gray-400 font-mono">{v.sku}</div>{/if}
 							</div>
 						</div>
 
-						<!-- Current stock (Shopify snapshot) -->
-						<div class="flex flex-col items-center shrink-0">
-							<span class="text-base font-semibold tabular-nums {v.currentStock === 0 ? 'text-red-600' : 'text-gray-700'}">{v.currentStock}</span>
-						</div>
+						<!-- Current stock + input -->
+						<div class="flex items-center gap-3 w-full sm:w-auto">
+							<!-- Current stock -->
+							<div class="flex items-center justify-center rounded-lg px-3 py-1.5 min-w-[44px] shrink-0 {v.currentStock === 0 ? 'bg-red-600' : 'bg-gray-900'}">
+								<span class="text-sm font-semibold tabular-nums text-white">{v.currentStock}</span>
+							</div>
 
-						<!-- Arrow -->
-						<svg class="w-4 h-4 text-gray-300 shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-
-						<!-- New stock input -->
-						<div class="shrink-0">
-							<div class="flex items-center border border-gray-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-400 transition">
+							<!-- Stepper -->
+							<div class="flex items-center border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-500/20 focus-within:border-indigo-400 transition">
 								<button type="button" aria-label="Decrease"
 									onclick={(e) => {
 										const input = e.currentTarget.nextElementSibling as HTMLInputElement;
@@ -212,14 +210,14 @@
 										if (val > 0) input.value = String(val - 1);
 										else input.value = '0';
 									}}
-									class="px-3 py-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors text-lg leading-none select-none border-r border-gray-200">−</button>
+									class="px-3 py-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-colors text-lg leading-none select-none border-r border-gray-200">−</button>
 								<input
 									type="number"
 									name="newStock_{v.id}"
 									value={v.newStock ?? ''}
 									min="0"
 									placeholder={String(v.currentStock)}
-									class="w-14 text-gray-900 py-2 text-center text-base font-semibold focus:outline-none placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+									class="w-12 text-gray-900 py-1.5 text-center text-sm font-semibold focus:outline-none placeholder-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
 								/>
 								<button type="button" aria-label="Increase"
 									onclick={(e) => {
@@ -227,7 +225,7 @@
 										const val = parseInt(input.value !== '' ? input.value : String(v.currentStock), 10);
 										input.value = String(val + 1);
 									}}
-									class="px-3 py-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors text-lg leading-none select-none border-l border-gray-200">+</button>
+									class="px-3 py-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-colors text-lg leading-none select-none border-l border-gray-200">+</button>
 							</div>
 						</div>
 					</div>
