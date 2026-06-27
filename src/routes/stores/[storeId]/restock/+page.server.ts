@@ -4,8 +4,6 @@ import { eq, and, desc, inArray, asc } from 'drizzle-orm';
 import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { fetchProducts, fetchSales, calcRecommendation, resolveVariantImage } from '$lib/server/shopify';
-import { getLwaToken, fetchAmazonListings, createOrdersReport } from '$lib/server/amazon';
-import { env } from '$env/dynamic/private';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const [store] = await db.select().from(stores).where(eq(stores.id, params.storeId));
@@ -52,7 +50,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				if (posMap.get(pos)) done++;
 				else if (resumeIndex === -1) resumeIndex = i;
 			});
-			if (resumeIndex === -1) resumeIndex = 0; // all done -> start at first
+			if (resumeIndex === -1) resumeIndex = 0;
 			progress.set(sid, { done, total, resumeIndex });
 		}
 	}
@@ -70,59 +68,11 @@ export const actions: Actions = {
 		const [store] = await db.select().from(stores).where(eq(stores.id, params.storeId));
 		if (!store) error(404);
 
-		// Create session
 		const [session] = await db
 			.insert(restockSessions)
 			.values({ storeId: params.storeId })
 			.returning();
 
-		if (store.storeType === 'amazon') {
-			// Amazon path: fetch listings synchronously, request sales report async
-			if (!store.lwaClientId || !store.lwaClientSecret || !store.lwaRefreshToken || !store.marketplaceId) {
-				error(400, 'Amazon store credentials not configured');
-			}
-			const accessToken = await getLwaToken(store.lwaClientId, store.lwaClientSecret, store.lwaRefreshToken);
-			const creds = { accessToken, awsKeyId: env.AMAZON_AWS_ACCESS_KEY_ID ?? '', awsSecret: env.AMAZON_AWS_SECRET_ACCESS_KEY ?? '' };
-
-			const listings = await fetchAmazonListings(store.domain, store.marketplaceId, creds);
-
-			// Insert items with sales = 0 (will be updated when report finishes)
-			const items: (typeof restockItems.$inferInsert)[] = [];
-			let position = 0;
-			for (const listing of listings) {
-				items.push({
-					sessionId: session.id,
-					productId: listing.asin,
-					variantId: listing.sku,
-					productTitle: listing.title,
-					variantTitle: null,
-					sku: listing.sku,
-					productImageUrl: listing.imageUrl,
-					variantImageUrl: null,
-					sales30: 0,
-					sales60: 0,
-					sales90: 0,
-					currentStock: listing.currentStock,
-					recAir: calcRecommendation(0, listing.currentStock, store.airLeadDays),
-					recSea: calcRecommendation(0, listing.currentStock, store.seaLeadDays),
-					position: position++,
-					variantPosition: 0
-				});
-			}
-			for (let i = 0; i < items.length; i += 100) {
-				await db.insert(restockItems).values(items.slice(i, i + 100));
-			}
-
-			// Kick off async sales report
-			const reportId = await createOrdersReport(store.marketplaceId, creds);
-			await db.update(restockSessions)
-				.set({ totalProducts: position, reportId })
-				.where(eq(restockSessions.id, session.id));
-
-			redirect(302, `/stores/${params.storeId}/restock/${session.id}/preparing`);
-		}
-
-		// Shopify path (unchanged)
 		const products = await fetchProducts(store.domain, store.apiToken);
 		const variantIds = products.flatMap((p) => p.variants.map((v) => v.id));
 		const salesMap = await fetchSales(store.domain, store.apiToken, variantIds);
@@ -175,14 +125,12 @@ export const actions: Actions = {
 		const sessionId = data.get('sessionId');
 		if (typeof sessionId !== 'string') error(400, 'Missing session id');
 
-		// Verify session belongs to this store before deleting
 		const [session] = await db
 			.select({ id: restockSessions.id })
 			.from(restockSessions)
 			.where(and(eq(restockSessions.id, sessionId), eq(restockSessions.storeId, params.storeId)));
 		if (!session) error(404, 'Session not found');
 
-		// Delete items first — libSQL has foreign_keys OFF by default, so no cascade
 		await db.delete(restockItems).where(eq(restockItems.sessionId, sessionId));
 		await db.delete(restockSessions).where(eq(restockSessions.id, sessionId));
 

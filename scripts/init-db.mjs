@@ -144,14 +144,38 @@ try { await client.execute(`ALTER TABLE "session" DROP COLUMN "two_factor_verifi
 // Ordered tracking
 try { await client.execute(`ALTER TABLE "restock_items" ADD COLUMN "ordered_at" text`); } catch {}
 
-// Amazon store support
-try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "store_type" text DEFAULT 'shopify' NOT NULL`); } catch {}
-try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "lwa_client_id" text`); } catch {}
-try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "lwa_client_secret" text`); } catch {}
-try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "lwa_refresh_token" text`); } catch {}
-try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "marketplace_id" text`); } catch {}
-// Make api_token nullable/defaulted for Amazon stores
-try { await client.execute(`ALTER TABLE "restock_sessions" ADD COLUMN "report_id" text`); } catch {}
+// Inventory checkup tables
+try {
+	await client.execute(`CREATE TABLE IF NOT EXISTS "inventory_sessions" (
+		"id" text PRIMARY KEY NOT NULL,
+		"store_id" text NOT NULL,
+		"started_at" text DEFAULT (datetime('now')) NOT NULL,
+		"completed_at" text,
+		"notes" text,
+		"total_products" integer DEFAULT 0 NOT NULL,
+		FOREIGN KEY ("store_id") REFERENCES "stores"("id") ON DELETE cascade
+	)`);
+} catch {}
+try {
+	await client.execute(`CREATE TABLE IF NOT EXISTS "inventory_items" (
+		"id" text PRIMARY KEY NOT NULL,
+		"session_id" text NOT NULL,
+		"product_id" text NOT NULL,
+		"variant_id" text NOT NULL,
+		"inventory_item_id" text NOT NULL,
+		"location_id" text NOT NULL,
+		"product_title" text NOT NULL,
+		"variant_title" text,
+		"sku" text,
+		"product_image_url" text,
+		"variant_image_url" text,
+		"current_stock" integer DEFAULT 0 NOT NULL,
+		"new_stock" integer,
+		"position" integer DEFAULT 0 NOT NULL,
+		"variant_position" integer DEFAULT 0 NOT NULL,
+		FOREIGN KEY ("session_id") REFERENCES "inventory_sessions"("id") ON DELETE cascade
+	)`);
+} catch {}
 
 console.log('Turso database initialized successfully.');
 await client.close();

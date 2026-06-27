@@ -68,6 +68,7 @@ query fetchProducts($cursor: String) {
               title
               sku
               inventoryQuantity
+              inventoryItem { id }
               image { id url }
             }
           }
@@ -111,7 +112,7 @@ export async function fetchProducts(domain: string, token: string): Promise<Shop
 				title: v.title,
 				sku: v.sku ?? '',
 				inventory_quantity: v.inventoryQuantity ?? 0,
-				inventory_item_id: 0,
+				inventory_item_id: v.inventoryItem ? gidToId(v.inventoryItem.id) : 0,
 				image_id: v.image ? gidToId(v.image.id) : null,
 				_variantImageUrl: v.image?.url ?? null
 			}));
@@ -195,4 +196,35 @@ export function resolveVariantImage(product: ShopifyProduct, variant: ShopifyVar
 	const byVariant = product.images.find((i) => i.variant_ids?.includes(variant.id));
 	if (byVariant) return byVariant.src;
 	return product.images[0]?.src ?? null;
+}
+
+// Returns the primary location ID for the store (first active location)
+export async function fetchPrimaryLocationId(domain: string, token: string): Promise<string> {
+	const query = `{ locations(first: 1) { edges { node { id } } } }`;
+	const res = await shopifyGraphQL(domain, token, query);
+	if (!res.ok) throw new Error(`Locations fetch failed: ${res.status}`);
+	const json = await res.json();
+	if (json.errors?.some((e: { extensions?: { code?: string } }) => e.extensions?.code === 'ACCESS_DENIED'))
+		throw new Error('Missing Shopify scope: read_locations. Add it to your custom app in Shopify admin.');
+	if (json.errors) throw new Error(`Locations GraphQL error: ${JSON.stringify(json.errors)}`);
+	const gid: string = json.data?.locations?.edges?.[0]?.node?.id;
+	if (!gid) throw new Error('No locations found');
+	return gid.split('/').pop()!;
+}
+
+// Set absolute inventory level for a variant at a location
+export async function setInventoryLevel(
+	domain: string,
+	token: string,
+	inventoryItemId: string,
+	locationId: string,
+	available: number
+): Promise<void> {
+	const url = new URL(`https://${domain}/admin/api/${API_VERSION}/inventory_levels/set.json`);
+	const postRes = await fetch(url.toString(), {
+		method: 'POST',
+		headers: { 'X-Shopify-Access-Token': token, 'Content-Type': 'application/json' },
+		body: JSON.stringify({ location_id: parseInt(locationId), inventory_item_id: parseInt(inventoryItemId), available })
+	});
+	if (!postRes.ok) throw new Error(`Set inventory failed: ${postRes.status} ${await postRes.text()}`);
 }
