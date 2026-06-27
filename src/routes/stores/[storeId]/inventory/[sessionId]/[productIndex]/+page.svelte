@@ -147,15 +147,7 @@
 				</div>
 				{/if}
 			</div>
-			{#if data.session.completedAt}
-			<a href="/stores/{data.store.id}/inventory/{data.session.id}/complete"
-				class="press inline-flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap">
-				Review
-				<svg class="w-3.5 h-3.5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
-			</a>
-			{:else}
 			<div class="text-xs text-gray-400 hidden md:block">← → keys to navigate</div>
-			{/if}
 		</div>
 	</div>
 
