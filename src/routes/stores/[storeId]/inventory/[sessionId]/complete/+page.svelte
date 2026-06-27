@@ -21,7 +21,7 @@
 				Back
 			</a>
 			<span class="text-sm font-medium text-gray-700">
-				{data.checkedItems.length} / {data.totalItems} counted
+				{data.checkedItems.length} {data.checkedItems.length === 1 ? 'variant' : 'variants'} adjusted
 			</span>
 			<form method="POST" action="?/apply" use:enhance={() => {
 				applying = true;
@@ -72,7 +72,7 @@
 		{:else}
 		<div class="mb-3">
 			<h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-				Counted variants ({data.checkedItems.length})
+				Adjusted ({data.checkedItems.length})
 			</h2>
 		</div>
 		<div class="bg-white border border-gray-200 rounded-xl shadow-sm divide-y divide-gray-100 overflow-hidden mb-6">
@@ -103,26 +103,6 @@
 			{/each}
 		</div>
 
-		{#if data.unchangedItems.length > 0}
-		<div class="mb-3">
-			<h2 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-				Not counted ({data.unchangedItems.length}) — will not be changed
-			</h2>
-		</div>
-		<div class="bg-white border border-gray-100 rounded-xl divide-y divide-gray-50 overflow-hidden opacity-50">
-			{#each data.unchangedItems.slice(0, 10) as item}
-			<div class="flex items-center gap-3 px-4 py-2.5">
-				<div class="flex-1 min-w-0">
-					<div class="text-xs text-gray-600 truncate">{item.productTitle}{item.variantTitle ? ` · ${item.variantTitle}` : ''}</div>
-				</div>
-				<span class="text-xs text-gray-400 tabular-nums">{item.currentStock}</span>
-			</div>
-			{/each}
-			{#if data.unchangedItems.length > 10}
-			<div class="px-4 py-2 text-xs text-gray-400">…and {data.unchangedItems.length - 10} more</div>
-			{/if}
-		</div>
-		{/if}
 		{/if}
 	</div>
 </div>

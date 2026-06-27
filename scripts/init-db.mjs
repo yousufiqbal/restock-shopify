@@ -141,6 +141,11 @@ try {
 try { await client.execute(`ALTER TABLE "user" DROP COLUMN "two_factor_backup_codes"`); } catch {}
 try { await client.execute(`ALTER TABLE "session" DROP COLUMN "two_factor_verified"`); } catch {}
 
+// OAuth credentials on stores
+try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "oauth_client_id" text`); } catch {}
+try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "oauth_client_secret" text`); } catch {}
+try { await client.execute(`ALTER TABLE "stores" ADD COLUMN "oauth_redirect_uri" text`); } catch {}
+
 // Ordered tracking
 try { await client.execute(`ALTER TABLE "restock_items" ADD COLUMN "ordered_at" text`); } catch {}
 

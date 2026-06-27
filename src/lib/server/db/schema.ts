@@ -10,6 +10,9 @@ export const stores = sqliteTable('stores', {
 	apiToken: text('api_token').notNull(),
 	airLeadDays: integer('air_lead_days').notNull().default(15),
 	seaLeadDays: integer('sea_lead_days').notNull().default(60),
+	oauthClientId: text('oauth_client_id'),
+	oauthClientSecret: text('oauth_client_secret'),
+	oauthRedirectUri: text('oauth_redirect_uri'),
 	createdAt: text('created_at').notNull().default(sql`(datetime('now'))`)
 });
 

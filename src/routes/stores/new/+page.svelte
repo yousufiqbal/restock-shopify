@@ -12,8 +12,10 @@
 		<span class="text-gray-900 font-medium">Add store</span>
 	</div>
 
+	<h1 class="text-2xl font-semibold text-gray-900 mb-6">Add store</h1>
+
 	<div class="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-		<h1 class="text-base font-semibold text-gray-900 mb-5">Add Shopify store</h1>
+		<h2 class="text-sm font-semibold text-gray-900 mb-5">Shopify store details</h2>
 
 		<form method="POST" use:enhance class="space-y-4">
 			{#if form?.error}

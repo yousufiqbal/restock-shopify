@@ -217,8 +217,9 @@
 								<button type="button" aria-label="Decrease"
 									onclick={(e) => {
 										const input = e.currentTarget.nextElementSibling as HTMLInputElement;
-										const val = parseInt(input.value || '0', 10);
+										const val = parseInt(input.value !== '' ? input.value : String(v.currentStock), 10);
 										if (val > 0) input.value = String(val - 1);
+										else input.value = '0';
 									}}
 									class="px-3 py-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors text-lg leading-none select-none border-r border-gray-200">−</button>
 								<input
@@ -232,7 +233,7 @@
 								<button type="button" aria-label="Increase"
 									onclick={(e) => {
 										const input = e.currentTarget.previousElementSibling as HTMLInputElement;
-										const val = parseInt(input.value || '0', 10);
+										const val = parseInt(input.value !== '' ? input.value : String(v.currentStock), 10);
 										input.value = String(val + 1);
 									}}
 									class="px-3 py-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors text-lg leading-none select-none border-l border-gray-200">+</button>

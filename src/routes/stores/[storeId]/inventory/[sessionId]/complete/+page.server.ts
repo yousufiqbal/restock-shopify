@@ -19,10 +19,9 @@ export const load: PageServerLoad = async ({ params }) => {
 	if (!store) error(404, 'Store not found');
 	if (!session) error(404, 'Session not found');
 
-	const checkedItems = items.filter(i => i.newStock != null);
-	const unchangedItems = items.filter(i => i.newStock == null);
+	const checkedItems = items.filter(i => i.newStock != null && i.newStock !== i.currentStock);
 
-	return { store, session, checkedItems, unchangedItems, totalItems: items.length };
+	return { store, session, checkedItems };
 };
 
 export const actions: Actions = {
@@ -35,7 +34,7 @@ export const actions: Actions = {
 
 		if (!store || !session) error(404);
 
-		const toUpdate = allItems.filter(i => i.newStock != null);
+		const toUpdate = allItems.filter(i => i.newStock != null && i.newStock !== i.currentStock);
 		const errors: string[] = [];
 
 		for (const item of toUpdate) {
