@@ -204,7 +204,6 @@
 
 						<!-- Current stock (Shopify snapshot) -->
 						<div class="flex flex-col items-center shrink-0">
-							<span class="text-[10px] text-gray-400 font-medium uppercase tracking-wide mb-0.5">Shopify</span>
 							<span class="text-base font-semibold tabular-nums {v.currentStock === 0 ? 'text-red-600' : 'text-gray-700'}">{v.currentStock}</span>
 						</div>
 
